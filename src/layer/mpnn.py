@@ -19,7 +19,7 @@ class MPNNEncoder(nn.Module):
                  hidden_size: int = 300,
                  bias: bool = False,
                  depth: int = 3,
-                 dropout: float = 0.0,
+                 dropout_ratio: float = 0.0,
                  aggregation: str = "mean",
                  activation: Union[str, callable] = "ReLU",
                  ):
@@ -36,7 +36,7 @@ class MPNNEncoder(nn.Module):
             hidden_size (list): Dimensionality of hidden layers in MPNN.
             bias (bool): Whether to add bias to linear layers (except last layer).
             depth (int): Number of message passing steps. Includes in and out step. Must be >= 3.
-            dropout (float): Dropout probability.
+            dropout_ratio (float): Dropout probability.
             aggregation (Literal['mean', 'sum', 'norm']): Aggregation scheme for atomic vectors into molecular vectors.
             activation (str, callable): Activation function. If a string is passed, it must correspond to the name
                 of a class in torch.nn.
@@ -50,7 +50,7 @@ class MPNNEncoder(nn.Module):
         if depth < 3:
             raise ValueError(f"MPNN depth must be >= 3. Your choice {depth} is < 3.")
         self.depth = depth
-        self.dropout = dropout
+        self.dropout = dropout_ratio
         self.aggregation = aggregation
 
         # Dropout

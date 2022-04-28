@@ -19,7 +19,8 @@ class FFN(nn.Module):
 
     Args:
         in_size: input feature size
-        hidden_sizes: sizes for hidden layers in FFN
+        hidden_size: size for hidden layers in FFN
+        depth: number of hidden layers in FFN
         dropout_ratio: Probability of dropout
         activation: activation function for hidden layers
         hidden_bias: Whether to add bias to hidden layers
@@ -32,7 +33,8 @@ class FFN(nn.Module):
     def __init__(
             self,
             in_size: int,
-            hidden_sizes: List[int],
+            hidden_size: int,
+            depth: int,
             *,
             dropout_ratio: float = 0.0,
             activation: Union[Callable, str] = "ReLU",
@@ -42,7 +44,7 @@ class FFN(nn.Module):
             out_sigmoid: bool = False,
     ):
         super().__init__()
-        self.num_hidden_layers = len(hidden_sizes)
+        self.num_hidden_layers = depth
 
         self.has_out_layer = out_size is not None
 
@@ -51,14 +53,14 @@ class FFN(nn.Module):
         layers = []
 
         # hidden layers
-        for i, size in enumerate(hidden_sizes):
+        for i in range(depth):
             layers.append(dropout)
-            layers.append(nn.Linear(in_size, size, bias=hidden_bias))
+            layers.append(nn.Linear(in_size, hidden_size, bias=hidden_bias))
 
             if activation is not None:
                 layers.append(get_activation(activation))
 
-            in_size = size
+            in_size = hidden_size
 
         # output layer
         if out_size is not None:

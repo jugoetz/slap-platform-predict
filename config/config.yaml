@@ -1,6 +1,7 @@
 # data
 reaction: True
 data_name: slap_dataset_reactions.csv
+split_dir_name: example_split
 
 # model
 encoder:

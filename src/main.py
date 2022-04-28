@@ -8,7 +8,7 @@ from src.util.definitions import DATA_ROOT
 
 
 dm = SLAPDataModule(data_dir=DATA_ROOT,
-                    split_dir=DATA_ROOT / "example_split",
+                    split_dir=DATA_ROOT / CONFIG["split_dir_name"],
                     reaction=CONFIG["reaction"],
                     smiles_columns=("SMILES", ),
                     label_column="targets"

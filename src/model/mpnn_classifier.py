@@ -16,11 +16,13 @@ class DMPNNModel(pl.LightningModule):
 
     def init_encoder(self, params):
         # todo this is a dummy rn
-        return MPNNEncoder(1, 1)
+        return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],
+                           bond_feature_size=self.hparams["bond_feature_size"],
+                           hidden_size=self.hparams["encoder"]["hidden_size"])
 
     def init_decoder(self, params):
         # todo this is a dummy rn
-        return FFN(300, [60, 60])
+        return FFN(in_size=300, hidden_sizes=[60, 60], out_size=1)
 
     def forward(self, x):
         return self.decoder(self.encoder(x))
@@ -30,7 +32,7 @@ class DMPNNModel(pl.LightningModule):
         # predict for batch
         cgr_batch, y = batch
         embedding = self.encoder(cgr_batch)
-        y_hat = self.decode(embedding)
+        y_hat = self.decoder(embedding)
 
         # calculate loss
         loss = self.calc_loss(y_hat, y)
@@ -111,20 +113,11 @@ class DMPNNModel(pl.LightningModule):
         return scheduler
 
     def calc_loss(self, preds, truth):
-        # TODO this works but it is not necessarily what I want to do
-        if self.is_binary:
-            loss = F.binary_cross_entropy_with_logits(
-                preds.reshape(-1),
-                truth.to(torch.float),  # input label is int for metric purpose
-                reduction="mean",
-            )
-        else:
-            loss = F.cross_entropy(
-                preds,
-                truth,
-                reduction="mean",
-            )
+        # TODO here I might want a different loss or expose the choice through hyperparameters
 
+        loss = F.binary_cross_entropy_with_logits(
+            preds.reshape(-1),
+            truth.to(torch.float),  # input label is int for metric purpose
+            reduction="mean",
+        )
         return loss
-
-

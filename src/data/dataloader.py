@@ -42,6 +42,9 @@ class SLAPDataModule(pl.LightningDataModule):
                            smiles_columns=self.smiles_columns,
                            label_column=self.label_column
                            )
+        self.atom_feature_size = full.atom_feature_size
+        self.bond_feature_size = full.bond_feature_size
+        self.feature_size = full.feature_size
         if stage in (None, "fit"):
             idx_train = pd.read_csv(os.path.join(self.split_dir, "train_idx.csv"), header=None).values.flatten()
             self.slap_train = [full[i] for i in idx_train]
@@ -70,6 +73,7 @@ class SLAPDataModule(pl.LightningDataModule):
         batched_labels = torch.tensor(labels)
 
         return batched_graphs, batched_labels
+
 
 
 class SLAPDataset(DGLDataset):
@@ -143,3 +147,24 @@ class SLAPDataset(DGLDataset):
     def __len__(self):
         """Number of graphs in the dataset"""
         return len(self.graphs)
+
+    @property
+    def atom_feature_size(self):
+        n_atom_features = self.atom_featurizer.feat_size()
+        if CONFIG["reaction"]:
+            return 2 * n_atom_features  # CGR has 2 x features
+        else:
+            return n_atom_features
+
+    @property
+    def bond_feature_size(self):
+        n_bond_features = self.bond_featurizer.feat_size()
+        if CONFIG["reaction"]:
+            return 2 * n_bond_features  # CGR has 2 x features
+        else:
+            return n_bond_features
+
+    @property
+    def feature_size(self):
+        return self.atom_feature_size + self.bond_feature_size
+

@@ -19,7 +19,7 @@ dm.setup()
 dl_iter = iter(dm.train_dataloader())
 batch = next(dl_iter)
 
-model = DMPNNModel(**CONFIG)
+model = DMPNNModel(**CONFIG, atom_feature_size=dm.atom_feature_size, bond_feature_size=dm.bond_feature_size)
 trainer = pl.Trainer(limit_train_batches=100, max_epochs=1)
 
 trainer.fit(model, train_dataloaders=dm.train_dataloader(), val_dataloaders=dm.val_dataloader())

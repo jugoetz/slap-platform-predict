@@ -7,3 +7,6 @@ lr_scheduler:
 reaction: true
 weight_decay: 0.001
 data_name: slap_dataset_reactions.csv
+
+encoder:
+  hidden_size: 300

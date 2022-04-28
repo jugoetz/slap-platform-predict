@@ -14,8 +14,8 @@ class MPNNEncoder(nn.Module):
     """
 
     def __init__(self,
-                 atom_fdim: int,
-                 bond_fdim: int,
+                 atom_feature_size: int,
+                 bond_feature_size: int,
                  hidden_size: int = 300,
                  bias: bool = False,
                  depth: int = 3,
@@ -31,8 +31,8 @@ class MPNNEncoder(nn.Module):
             - dropout  TODO dropout could be useful
 
         Args:
-            atom_fdim (int): Atom feature vector dimension.
-            bond_fdim (int): Bond feature vector dimension.
+            atom_feature_size (int): Atom feature vector size.
+            bond_feature_size (int): Bond feature vector size.
             hidden_size (list): Dimensionality of hidden layers in MPNN.
             bias (bool): Whether to add bias to linear layers (except last layer).
             depth (int): Number of message passing steps. Includes in and out step. Must be >= 3.
@@ -43,8 +43,8 @@ class MPNNEncoder(nn.Module):
 
         """
         super(MPNNEncoder, self).__init__()
-        self.atom_fdim = atom_fdim
-        self.bond_fdim = bond_fdim
+        self.atom_fdim = atom_feature_size
+        self.bond_fdim = bond_feature_size
         self.hidden_size = hidden_size
         self.bias = bias
         if depth < 3:
@@ -60,16 +60,14 @@ class MPNNEncoder(nn.Module):
         self.act_func = get_activation(activation)
 
         # Input
-        input_dim = 2 * (
-                    self.atom_fdim + self.bond_fdim)  # x 2 b/c CGR is a concatenation of reactant features + difference to product
+        input_dim = self.atom_fdim + self.bond_fdim
         self.W_i = nn.Linear(input_dim, self.hidden_size, bias=self.bias)
 
         # Shared weight matrix across depths (default)
         self.W_h = nn.Linear(self.hidden_size, self.hidden_size, bias=self.bias)
 
         # Output
-        self.W_o = nn.Linear(2 * self.atom_fdim + self.hidden_size,
-                             self.hidden_size)  # x 2 b/c CGR is a concatenation of reactant features + difference to product
+        self.W_o = nn.Linear(self.atom_fdim + self.hidden_size, self.hidden_size)
 
     def forward(self,
                 graph: dgl.DGLGraph,

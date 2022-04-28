@@ -9,7 +9,8 @@ import pandas as pd
 import pytorch_lightning as pl
 from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeaturizer
 
-from .grapher import build_cgr, build_mol_graph
+from src.data.grapher import build_cgr, build_mol_graph
+from src.util.configuration import CONFIG
 
 
 class SLAPDataModule(pl.LightningDataModule):
@@ -101,7 +102,7 @@ class SLAPDataset(DGLDataset):
         self.bond_featurizer = CanonicalBondFeaturizer(bond_data_field="e")
         self.global_featurizer = None
 
-        super(SLAPDataset, self).__init__(name='slap_dataset',
+        super(SLAPDataset, self).__init__(name=CONFIG["data_name"],
                                           url=url,
                                           raw_dir=raw_dir,
                                           save_dir=save_dir,
@@ -112,7 +113,7 @@ class SLAPDataset(DGLDataset):
     def process(self):
         """Read data from csv file and generate graphs"""
 
-        csv_data = pd.read_csv(self.raw_path + ".csv")
+        csv_data = pd.read_csv(self.raw_path)
         smiles = [csv_data[s] for s in self.smiles_columns]
 
         # Currently, we don't support having multiple inputs per data point

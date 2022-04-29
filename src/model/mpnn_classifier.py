@@ -44,7 +44,9 @@ class DMPNNModel(pl.LightningModule):
         # calculate additional metrics
         acc = tm.Accuracy()
         auc = tm.AUROC()
-        return y_hat, loss, {"accuracy": acc(y_hat, y), "AUROC": auc(y_hat, y)}
+        prec = tm.Precision()
+        rec = tm.Recall()
+        return y_hat, loss, {"accuracy": acc(y_hat, y), "AUROC": auc(y_hat, y), "precision": prec(y_hat, y), "recall": rec(y_hat, y)}
 
     def training_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)

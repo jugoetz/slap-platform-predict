@@ -75,7 +75,6 @@ class SLAPDataModule(pl.LightningDataModule):
         return batched_graphs, batched_labels
 
 
-
 class SLAPDataset(DGLDataset):
     """
     SLAP Dataset

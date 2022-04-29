@@ -1,6 +1,8 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+import torchmetrics as tm
+import wandb
 
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
@@ -29,7 +31,7 @@ class DMPNNModel(pl.LightningModule):
     def forward(self, x):
         return self.decoder(self.encoder(x))
 
-    def shared_step(self, batch):
+    def _get_preds_loss_metrics(self, batch):
 
         # predict for batch
         cgr_batch, y = batch
@@ -39,20 +41,28 @@ class DMPNNModel(pl.LightningModule):
         # calculate loss
         loss = self.calc_loss(y_hat, y)
 
-        return loss
+        # calculate additional metrics
+        acc = tm.Accuracy()
+        auc = tm.AUROC()
+        return y_hat, loss, {"accuracy": acc(y_hat, y), "AUROC": auc(y_hat, y)}
 
     def training_step(self, batch, batch_idx):
-        loss = self.shared_step(batch)
+        preds, loss, metrics = self._get_preds_loss_metrics(batch)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        for k, v in metrics.items():
+            self.log(f"train_{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self.shared_step(batch)
+        preds, loss, metrics = self._get_preds_loss_metrics(batch)
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        for k, v in metrics.items():
+            self.log(f"val_{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
         return loss
 
     def test_step(self, batch, batch_idx):
-        loss = self.shared_step(batch)
+        preds, loss, metrics = self._get_preds_loss_metrics(batch)
         self.log("test_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
@@ -118,7 +128,7 @@ class DMPNNModel(pl.LightningModule):
         # TODO here I might want a different loss or expose the choice through hyperparameters
 
         loss = F.binary_cross_entropy_with_logits(
-            preds.reshape(-1),
+            preds,
             truth.to(torch.float),  # input label is int for metric purpose
             reduction="mean",
         )

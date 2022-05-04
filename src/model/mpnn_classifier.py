@@ -2,7 +2,6 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torchmetrics as tm
-import wandb
 
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
@@ -50,22 +49,21 @@ class DMPNNModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         for k, v in metrics.items():
-            self.log(f"train_{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(f"train/{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         for k, v in metrics.items():
-            self.log(f"val_{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
+            self.log(f"val/{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("test_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def configure_optimizers(self):
@@ -84,7 +82,7 @@ class DMPNNModel(pl.LightningModule):
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": scheduler,
-                "monitor": "val/score",
+                "monitor": "val/loss",
             }
 
     def _config_lr_scheduler(self, optimizer):

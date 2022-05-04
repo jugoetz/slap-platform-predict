@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 import pandas as pd
 import pytorch_lightning as pl
+from sklearn.model_selection import KFold
 from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeaturizer
 
 from src.data.grapher import build_cgr, build_mol_graph
@@ -16,21 +17,30 @@ from src.util.configuration import CONFIG
 class SLAPDataModule(pl.LightningDataModule):
     """Data module to load different splits of the SLAP data set."""
 
-    def __init__(self, data_dir, split_dir, reaction,
-                 smiles_columns, label_column, batch_size=32):
+    def __init__(self, data_dir, split_dir, cross_validate=None, cv_random_state=42, reaction=True,
+                 smiles_columns=("SMILES", ), label_column="targets", batch_size=32):
         """
         Args:
             data_dir: Directory containing data set
             split_dir: Directory containing three files: "train_idx.csv", "val_idx.csv", "test_idx.csv",
                         each containing the indices for the respective split
-            reaction (bool): Whether data contains reactionSMILES (as opposed to molecule SMILES)
-            smiles_columns (Tuple[str]): Headers of columns containing SMILES
-            label_column (str): Header of column containing labels
-            batch_size (int): Size of {train,val,test} batches
+            cross_validate (int, optional): If int > 1 is passed, use kfold cross-validation where k is this number.
+                If None is passed, do not perform cross-validation.
+                Note that if performing CV, validation sets will be taken from the train indices. It is not possible to
+                pass a separate validation set.
+            cv_random_state (int, optional): Random seed for CV. Ineffective if cross_validate is None.
+            reaction (bool): Whether data contains reactionSMILES (as opposed to molecule SMILES). Default True
+            smiles_columns (Tuple[str]): Headers of columns containing SMILES. Default ("SMILES", )
+            label_column (str): Header of column containing labels. Default "targets".
+            batch_size (int): Size of {train,val,test} batches. Default 32.
         """
         super().__init__()
         self.data_dir = data_dir
         self.split_dir = split_dir
+        self.cross_validate = cross_validate
+        if self.cross_validate in [0, 1]:
+            self.cross_validate = None
+        self.cv_random_state = cv_random_state
         self.reaction = reaction
         self.smiles_columns = smiles_columns
         self.label_column = label_column
@@ -46,19 +56,26 @@ class SLAPDataModule(pl.LightningDataModule):
         self.bond_feature_size = full.bond_feature_size
         self.feature_size = full.feature_size
         if stage in (None, "fit"):
-            idx_train = pd.read_csv(os.path.join(self.split_dir, "train_idx.csv"), header=None).values.flatten()
-            self.slap_train = [full[i] for i in idx_train]
-            idx_val = pd.read_csv(os.path.join(self.split_dir, "val_idx.csv"), header=None).values.flatten()
-            self.slap_val = [full[i] for i in idx_val]
+            idx_train = pd.read_csv(os.path.join(self.split_dir, "train_idx.csv"), header=0).values.flatten()
+
+            if self.cross_validate:
+                splitter = KFold(n_splits=self.cross_validate, shuffle=True, random_state=self.cv_random_state)
+                idx_cv = [(tr, val) for tr, val in splitter.split(idx_train)]
+                self.slap_train = [[full[i] for i in fold[0]] for fold in idx_cv]
+                self.slap_val = [[full[i] for i in fold[1]] for fold in idx_cv]
+            else:
+                idx_val = pd.read_csv(os.path.join(self.split_dir, "val_idx.csv"), header=0).values.flatten()
+                self.slap_train = [[full[i] for i in idx_train]]
+                self.slap_val = [[full[i] for i in idx_val]]
         if stage in (None, "test"):
-            idx_test = pd.read_csv(os.path.join(self.split_dir, "test_idx.csv"), header=None).values.flatten()
+            idx_test = pd.read_csv(os.path.join(self.split_dir, "test_idx.csv"), header=0).values.flatten()
             self.slap_test = [full[i] for i in idx_test]
 
-    def train_dataloader(self):
-        return DataLoader(self.slap_train, batch_size=self.batch_size, collate_fn=self._collate_fn)
+    def train_dataloader(self, fold=0):
+        return DataLoader(self.slap_train[fold], batch_size=self.batch_size, collate_fn=self._collate_fn)
 
-    def val_dataloader(self):
-        return DataLoader(self.slap_val, batch_size=self.batch_size, collate_fn=self._collate_fn)
+    def val_dataloader(self, fold=0):
+        return DataLoader(self.slap_val[fold], batch_size=self.batch_size, collate_fn=self._collate_fn)
 
     def test_dataloader(self):
         return DataLoader(self.slap_test, batch_size=self.batch_size, collate_fn=self._collate_fn)

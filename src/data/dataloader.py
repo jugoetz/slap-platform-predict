@@ -14,6 +14,17 @@ from src.data.grapher import build_cgr, build_mol_graph
 from src.util.configuration import CONFIG
 
 
+def collate_fn(batch: List[Tuple[dgl.DGLGraph, torch.tensor]]) -> Tuple[dgl.DGLGraph, torch.tensor]:
+    """Collate a list of samples into a batch, i.e. into a single tuple representing the entire batch"""
+
+    graphs, labels = map(list, zip(*batch))
+
+    batched_graphs = dgl.batch(graphs)
+    batched_labels = torch.tensor(labels)
+
+    return batched_graphs, batched_labels
+
+
 class SLAPDataModule(pl.LightningDataModule):
     """Data module to load different splits of the SLAP data set."""
 
@@ -72,24 +83,13 @@ class SLAPDataModule(pl.LightningDataModule):
             self.slap_test = [full[i] for i in idx_test]
 
     def train_dataloader(self, fold=0):
-        return DataLoader(self.slap_train[fold], batch_size=self.batch_size, collate_fn=self._collate_fn)
+        return DataLoader(self.slap_train[fold], batch_size=self.batch_size, collate_fn=collate_fn)
 
     def val_dataloader(self, fold=0):
-        return DataLoader(self.slap_val[fold], batch_size=self.batch_size, collate_fn=self._collate_fn)
+        return DataLoader(self.slap_val[fold], batch_size=self.batch_size, collate_fn=collate_fn)
 
     def test_dataloader(self):
-        return DataLoader(self.slap_test, batch_size=self.batch_size, collate_fn=self._collate_fn)
-
-    @staticmethod
-    def _collate_fn(batch: List[Tuple[dgl.DGLGraph, torch.tensor]]) -> Tuple[dgl.DGLGraph, torch.tensor]:
-        """Collate a list of samples into a batch, i.e. a single tuple representing the entire batch"""
-
-        graphs, labels = map(list, zip(*batch))
-
-        batched_graphs = dgl.batch(graphs)
-        batched_labels = torch.tensor(labels)
-
-        return batched_graphs, batched_labels
+        return DataLoader(self.slap_test, batch_size=self.batch_size, collate_fn=collate_fn)
 
 
 class SLAPDataset(DGLDataset):

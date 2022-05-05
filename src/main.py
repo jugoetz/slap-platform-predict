@@ -13,12 +13,14 @@ from src.util.definitions import DATA_ROOT, PROJECT_DIR, LOG_DIR_ABS
 # logging
 os.environ["WANDB_DIR"] = LOG_DIR_ABS
 os.environ["WANDB_MODE"] = "online"
-wandb_group_name = "test_CV-4"
+wandb_group_name = wandb.util.generate_id()
 wandb_project = "slap-gnn"
+cross_validate = 5
+log_cv_mean = True
 
 
 # TODO: have the possibility to pass train and test set, then internally split train into train and val and do cv on it
-cross_validate = 5
+
 # data
 dm = SLAPDataModule(data_dir=DATA_ROOT,
                     split_dir=DATA_ROOT / CONFIG["split_dir_name"],
@@ -31,13 +33,11 @@ dm = SLAPDataModule(data_dir=DATA_ROOT,
 dm.prepare_data()
 dm.setup()
 
-
-
 # run training
 if cross_validate:
     metrics = []
     for fold in range(cross_validate):
-        wandb.init(group=wandb_group_name, project=wandb_project)
+        wandb.init(group=wandb_group_name, project=wandb_project, name=f"fold{fold}")
         model = DMPNNModel(**CONFIG, atom_feature_size=dm.atom_feature_size, bond_feature_size=dm.bond_feature_size)
         # trainer
         logger = WandbLogger()
@@ -46,9 +46,17 @@ if cross_validate:
         trainer.fit(model, train_dataloaders=dm.train_dataloader(fold), val_dataloaders=dm.val_dataloader(fold))
         metrics.append(trainer.logged_metrics)
         wandb.log(trainer.logged_metrics)
-        wandb.join()
-    print([fold["val/accuracy"] for fold in metrics])
 
+        wandb.finish()
+        trainer.logged_metrics.keys()
+    if log_cv_mean:
+        metrics_mean = {}
+        for k in trainer.logged_metrics.keys():
+            if not k.startswith("_"):
+                metrics_mean[k] = torch.mean(torch.stack([fold[k] for fold in metrics]))
+        wandb.init(group=wandb_group_name, project=wandb_project, name="CV_summary")
+        wandb.log(metrics_mean)
+        wandb.finish()
 else:
     wandb.init(group=wandb_group_name, project=wandb_project)
     model = DMPNNModel(**CONFIG, atom_feature_size=dm.atom_feature_size, bond_feature_size=dm.bond_feature_size)
@@ -57,4 +65,7 @@ else:
     trainer = pl.Trainer(max_epochs=CONFIG["training"]["max_epochs"], log_every_n_steps=1, default_root_dir=PROJECT_DIR,
                          logger=logger)
     trainer.fit(model, train_dataloaders=dm.train_dataloader(), val_dataloaders=dm.val_dataloader())
-    wandb.join()
+    wandb.finish()
+
+
+

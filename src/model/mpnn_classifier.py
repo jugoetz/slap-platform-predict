@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torchmetrics as tm
+import wandb
 
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
@@ -64,6 +65,8 @@ class DMPNNModel(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
         self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("conf_mat", wandb.plot.confusion_matrix(y_true=batch[1].numpy(), preds=torch.bucketize(preds, boundaries=torch.tensor([0.5])).numpy(),
+                                                           class_names=["fail", "success"]), logger=True)
         return loss
 
     def configure_optimizers(self):
@@ -126,10 +129,16 @@ class DMPNNModel(pl.LightningModule):
 
     def calc_loss(self, preds, truth):
         # TODO here I might want a different loss or expose the choice through hyperparameters
-
-        loss = F.binary_cross_entropy_with_logits(
-            preds,
-            truth.to(torch.float),  # input label is int for metric purpose
-            reduction="mean",
-        )
+        if self.hparams.decoder["out_sigmoid"]:
+            loss = F.binary_cross_entropy(
+                preds,
+                truth.to(torch.float),  # input label is int for metric purpose
+                reduction="mean"
+            )
+        else:
+            loss = F.binary_cross_entropy_with_logits(
+                preds,
+                truth.to(torch.float),  # input label is int for metric purpose
+                reduction="mean",
+            )
         return loss

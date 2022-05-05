@@ -27,7 +27,7 @@ class FFN(nn.Module):
         out_size: size of output layer
         out_bias: bias for output layer, this use set to False internally if
             out_batch_norm is used.
-        out_sigmoid: Whether to apply sigmoid to output
+        out_sigmoid: Whether to apply sigmoid to output. If False, returns logits. If True, returns probabilities.
     """
 
     def __init__(

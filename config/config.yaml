@@ -19,16 +19,16 @@ decoder:
   activation: ReLU  # str, any activation from torch.nn can be used
   hidden_bias: False  # bool, whether to add bias to hidden layers
   out_bias: False  # bool, whether to add bias to output layer
-  out_sigmoid: False  # bool, whether to add a sigmoid layer at the end of the network
+  out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
 
 optimizer:
   weight_decay: 0
   lr: 0.001
   lr_scheduler:
-    epochs: 30  # should be the same as max_epochs for the desired effect
+    epochs: 2  # should be the same as max_epochs for the desired effect
     lr_min: 1.0e-04
     lr_warmup_step: 5
     scheduler_name: exp_with_linear_warmup
 
 training:
-  max_epochs: 30
+  max_epochs: 2

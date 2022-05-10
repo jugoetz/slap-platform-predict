@@ -2,7 +2,6 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torchmetrics as tm
-import wandb
 
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
@@ -15,6 +14,10 @@ class DMPNNModel(pl.LightningModule):
         params = {}
         self.encoder = self.init_encoder(params)
         self.decoder = self.init_decoder(params)
+        self.metrics = torch.nn.ModuleDict({"accuracy": tm.Accuracy(),
+                                            "AUROC": tm.AUROC(),
+                                            "precision": tm.Precision(),
+                                            "recall": tm.Recall()})
 
     def init_encoder(self, params):
         return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],
@@ -41,32 +44,25 @@ class DMPNNModel(pl.LightningModule):
         # calculate loss
         loss = self.calc_loss(y_hat, y)
 
-        # calculate additional metrics
-        acc = tm.Accuracy()
-        auc = tm.AUROC()
-        prec = tm.Precision()
-        rec = tm.Recall()
-        return y_hat, loss, {"accuracy": acc(y_hat, y), "AUROC": auc(y_hat, y), "precision": prec(y_hat, y), "recall": rec(y_hat, y)}
+        return y_hat, loss, {k: v(y_hat, y) for k, v in self.metrics.items()}
 
     def training_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for k, v in metrics.items():
-            self.log(f"train/{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(f"train/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         for k, v in metrics.items():
-            self.log(f"val/{k}", v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(f"val/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
         self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log("conf_mat", wandb.plot.confusion_matrix(y_true=batch[1].numpy(), preds=torch.bucketize(preds, boundaries=torch.tensor([0.5])).numpy(),
-                                                           class_names=["fail", "success"]), logger=True)
         return loss
 
     def configure_optimizers(self):

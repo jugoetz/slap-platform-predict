@@ -25,10 +25,10 @@ optimizer:
   weight_decay: 0
   lr: 0.001
   lr_scheduler:
-    epochs: 2  # should be the same as max_epochs for the desired effect
+    epochs: 1  # should be the same as max_epochs for the desired effect
     lr_min: 1.0e-04
     lr_warmup_step: 5
     scheduler_name: exp_with_linear_warmup
 
 training:
-  max_epochs: 2
+  max_epochs: 1

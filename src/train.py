@@ -7,6 +7,9 @@ from src.util.logging import generate_run_id
 
 def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False, save_model=False):
     """
+    Trains a model on a given data split with one set of hyperparameters. By default, returns the evaluation metrics
+    on the validation set.
+
     Args:
         train (torch.utils.data.DataLoader): Training data
         val: (torch.utils.data.DataLoader): Validation data
@@ -19,7 +22,6 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
 
     Returns:
         dict: Dictionary of validation metrics and, if return_test_metrics is True, additionally test metrics
-
     """
     # generate run_id if None is passed
     if not run_id:
@@ -33,8 +35,12 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
     # initialize model
     model = DMPNNModel(**hparams)
     # initialize trainer
+    if hparams["gpu"]:
+        accelerator = "gpu"
+    else:
+        accelerator = None
     trainer = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
-                         default_root_dir=PROJECT_DIR, logger=False)
+                         default_root_dir=PROJECT_DIR, logger=False, accelerator=accelerator)
     # run training
     trainer.fit(model, train_dataloaders=train, val_dataloaders=val)
 

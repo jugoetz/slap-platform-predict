@@ -2,3 +2,4 @@
 lightning_logs/
 outputs/
 logs/
+checkpoints/

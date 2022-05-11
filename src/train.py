@@ -35,10 +35,10 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
     # initialize model
     model = DMPNNModel(**hparams)
     # initialize trainer
-    if hparams["gpu"]:
+    if hparams["gpu"] is True:
         accelerator = "gpu"
     else:
-        accelerator = None
+        accelerator = "cpu"
     trainer = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
                          default_root_dir=PROJECT_DIR, logger=False, accelerator=accelerator)
     # run training

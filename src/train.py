@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from src.model.mpnn_classifier import DMPNNModel
 from src.util.definitions import PROJECT_DIR, LOG_DIR
@@ -35,13 +36,17 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
 
     # initialize model
     model = DMPNNModel(**hparams)
+    # initialize callbacks
+    callbacks = []
+    callbacks.append(EarlyStopping(monitor="val/loss", mode="min", patience=5))
+
     # initialize trainer
     if hparams["gpu"] is True:
         accelerator = "gpu"
     else:
         accelerator = "cpu"
     trainer = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
-                         default_root_dir=PROJECT_DIR, logger=WandbLogger(), accelerator=accelerator)
+                         default_root_dir=PROJECT_DIR, logger=WandbLogger(), accelerator=accelerator, callbacks=callbacks)
     # run training
     trainer.fit(model, train_dataloaders=train, val_dataloaders=val)
 

@@ -103,6 +103,7 @@ class SLAPDataset(DGLDataset):
     If reaction=True, the encoding will be a condensed graph of reaction (CGR).
     """
     def __init__(self,
+                 name,
                  raw_dir=None,
                  url=None,
                  reaction=False,
@@ -122,7 +123,7 @@ class SLAPDataset(DGLDataset):
         self.bond_featurizer = CanonicalBondFeaturizer(bond_data_field="e")
         self.global_featurizer = None
 
-        super(SLAPDataset, self).__init__(name=CONFIG["data_name"],
+        super(SLAPDataset, self).__init__(name=name,
                                           url=url,
                                           raw_dir=raw_dir,
                                           save_dir=save_dir,

@@ -11,21 +11,20 @@ class DMPNNModel(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
         self.save_hyperparameters()
-        params = {}
-        self.encoder = self.init_encoder(params)
-        self.decoder = self.init_decoder(params)
+        self.encoder = self.init_encoder()
+        self.decoder = self.init_decoder()
         self.metrics = torch.nn.ModuleDict({"accuracy": tm.Accuracy(),
                                             "AUROC": tm.AUROC(),
                                             "precision": tm.Precision(),
                                             "recall": tm.Recall()})
 
-    def init_encoder(self, params):
+    def init_encoder(self):
         return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],
                            bond_feature_size=self.hparams["bond_feature_size"],
                            **self.hparams.encoder
                            )
 
-    def init_decoder(self, params):
+    def init_decoder(self):
         return FFN(in_size=self.hparams.encoder["hidden_size"],
                    out_size=1,
                    **self.hparams.decoder,

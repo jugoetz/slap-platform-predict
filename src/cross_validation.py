@@ -9,7 +9,7 @@ from src.train import train
 from src.util.logging import generate_run_id
 
 
-def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False):
+def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False, return_fold_metrics=False):
     """
     Trains a model under cross-validation. Returns the validation metrics' mean and std.
 
@@ -18,9 +18,12 @@ def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False
         data (torch.utils.data.Dataset): Data set to run CV on.
         n_folds (int): Number of folds. If 1, a 4:1 ShuffleSplit will be used regardless of strategy.
         strategy (str): CV strategy. Supported: {"KFold"}. Defaults to "KFold".
+        save_models (bool, optional): Whether to save a model checkpoint after training
+        return_fold_metrics (bool, optional): Whether to additionally return full train and val metrics for all folds
 
     Returns:
-        dict: Metrics returned by train(), aggregated across folds (mean and standard deviation).
+        dict: Validation metrics, aggregated across folds (mean and standard deviation).
+        dict: All metrics returned by train(), for all folds. Only returned if return_fold_metrics is True.
     """
     # set up splitter
     if n_folds == 1:
@@ -28,7 +31,7 @@ def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False
     elif strategy == "KFold":
         splitter = KFold(n_splits=n_folds, shuffle=True, random_state=42)
     else:
-        raise ValueError(f"Invalid strategy {strategy}")
+        raise ValueError(f"Invalid strategy '{strategy}'")
 
     # generate run_id
     cv_run_id = generate_run_id()
@@ -51,4 +54,8 @@ def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False
     metrics_return = {k + "_mean": torch.mean(v) for k, v in metrics.items()}
     metrics_std = {k + "_std": torch.std(v) for k, v in metrics.items()}
     metrics_return.update(metrics_std)
-    return metrics_return
+
+    if return_fold_metrics:
+        return metrics_return, metrics
+    else:
+        return metrics_return

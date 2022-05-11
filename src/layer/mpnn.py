@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 
 from src.layer.util import get_activation
+from src.layer.pooling import AvgPooling, SumPooling, MaxPooling, GlobalAttentionPooling
 
 
 class MPNNEncoder(nn.Module):
@@ -68,6 +69,19 @@ class MPNNEncoder(nn.Module):
 
         # Output
         self.W_o = nn.Linear(self.atom_fdim + self.hidden_size, self.hidden_size)
+
+        # Pooling
+        if self.aggregation == "attention":
+            self.pooling = GlobalAttentionPooling(gate_nn=nn.Linear(self.hidden_size, 1), ntype="atom", feat="h_v", get_attention=True)
+        elif self.aggregation == "mean":
+            self.pooling = AvgPooling(ntype="atom", feat="h_v")
+        elif self.aggregation == "sum":
+            self.pooling = SumPooling(ntype="atom", feat="h_v")
+        elif self.aggregation == "max":
+            self.pooling = MaxPooling(ntype="atom", feat="h_v")
+        else:
+            raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
+
 
     def forward(self,
                 graph: dgl.DGLGraph,
@@ -184,22 +198,13 @@ class MPNNEncoder(nn.Module):
             etype=("bond", "starts_at", "atom"),
         )
 
-        # there is one remaining task in the readout phase:
-        # we cannot apply the above sum of every atom node on a batched graph.
-        # Instead, we only want to sum over the nodes that belong to one graph.
-        # So our output for would be of size (n_batched x n_features)
-        # Conveniently, DGL has a method for the readout on batch graphs
+        # 4. Readout
+        # We want to aggregate features over the nodes that belong to one graph.
+        # So our output is of size (n_batched x n_features)
 
-        # note that other aggregation operations than sum are possible.
-        # Chemprop's default is mean, however for predicting reactivity, max should be suitable
-
-        if self.aggregation == "max":
-            hidden_rep = dgl.readout_nodes(graph, "h_v", ntype="atom", op="max")
-        elif self.aggregation == "mean":
-            hidden_rep = dgl.readout_nodes(graph, "h_v", ntype="atom", op="mean")
-        elif self.aggregation == "sum":
-            hidden_rep = dgl.readout_nodes(graph, "h_v", ntype="atom", op="sum")
+        if self.aggregation == "attention":
+            hidden_rep, attention = self.pooling(graph)
         else:
-            raise ValueError("Aggregation must be one of ['max', 'mean', 'sum']")
+            hidden_rep = self.pooling(graph)
 
         return hidden_rep  # n_batched x hidden_size

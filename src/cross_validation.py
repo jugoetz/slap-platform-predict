@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 import torch
-from sklearn.model_selection import KFold, ShuffleSplit
+from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader
 
 from src.data.dataloader import collate_fn
@@ -9,7 +9,7 @@ from src.train import train
 from src.util.logging import generate_run_id
 
 
-def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False, return_fold_metrics=False):
+def cross_validate(hparams, data, trainer, n_folds=5, strategy="KFold", save_models=False, return_fold_metrics=False):
     """
     Trains a model under cross-validation. Returns the validation metrics' mean and std.
 
@@ -26,9 +26,10 @@ def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False
         dict: All metrics returned by train(), for all folds. Only returned if return_fold_metrics is True.
     """
     # set up splitter
-    if n_folds == 1:
-        splitter = ShuffleSplit(test_size=0.2, random_state=42)
-    elif strategy == "KFold":
+    if n_folds < 2:
+        raise ValueError("n_folds must be > 1 for cross-validation.")
+
+    if strategy == "KFold":
         splitter = KFold(n_splits=n_folds, shuffle=True, random_state=42)
     else:
         raise ValueError(f"Invalid strategy '{strategy}'")
@@ -40,12 +41,12 @@ def cross_validate(hparams, data, n_folds=5, strategy="KFold", save_models=False
     metrics = defaultdict(list)
     for i, (train_idx, val_idx) in enumerate(splitter.split(list(range(len(data))))):
         if i >= n_folds:
-            break
+            break  # exit loop for "endless" splitters like ShuffleSplit
         data_train = [data[i] for i in train_idx]
         data_val = [data[i] for i in val_idx]
         train_dl = DataLoader(data_train, batch_size=32, shuffle=True, collate_fn=collate_fn)
         val_dl = DataLoader(data_val, batch_size=32, collate_fn=collate_fn)
-        fold_metrics = train(train_dl, val_dl, hparams, run_id=f"{cv_run_id}_fold{i}", save_model=save_models)
+        fold_metrics, _ = train(train_dl, val_dl, hparams, trainer, run_id=f"{cv_run_id}_fold{i}", save_model=save_models)
         for k, v in fold_metrics.items():
             metrics[k].append(v)
 

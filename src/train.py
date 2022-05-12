@@ -1,13 +1,32 @@
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader
 
 from src.model.mpnn_classifier import DMPNNModel
 from src.util.definitions import PROJECT_DIR, LOG_DIR
 from src.util.logging import generate_run_id
+from src.data.dataloader import collate_fn
 
 
-def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False, save_model=False):
+def run_training(hparams, data, trainer, save_model=False):
+    """Convenience wrapper around train() to train a model on a single train-test split"""
+
+    # split data
+    data_train, data_val = train_test_split(data, test_size=0.2, shuffle=True, random_state=42)
+
+    # instantiate DataLoaders
+    train_dl = DataLoader(data_train, batch_size=32, shuffle=True, collate_fn=collate_fn)
+    val_dl = DataLoader(data_val, batch_size=32, collate_fn=collate_fn)
+
+    # run training
+    metrics, trained_model = train(train_dl, val_dl, hparams, trainer, save_model=save_model)
+
+    return metrics, trained_model
+
+
+def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metrics=False, save_model=False):
     """
     Trains a model on a given data split with one set of hyperparameters. By default, returns the evaluation metrics
     on the validation set.
@@ -24,6 +43,7 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
 
     Returns:
         dict: Dictionary of validation metrics and, if return_test_metrics is True, additionally test metrics
+        DMPNNModel: Trained model
     """
     # generate run_id if None is passed
     if not run_id:
@@ -36,17 +56,7 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
 
     # initialize model
     model = DMPNNModel(**hparams)
-    # initialize callbacks
-    callbacks = []
-    callbacks.append(EarlyStopping(monitor="val/loss", mode="min", patience=5))
 
-    # initialize trainer
-    if hparams["gpu"] is True:
-        accelerator = "gpu"
-    else:
-        accelerator = "cpu"
-    trainer = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
-                         default_root_dir=PROJECT_DIR, logger=WandbLogger(), accelerator=accelerator, callbacks=callbacks)
     # run training
     trainer.fit(model, train_dataloaders=train, val_dataloaders=val)
 
@@ -62,7 +72,7 @@ def train(train, val, hparams, run_id=None, test=None, return_test_metrics=False
     if return_test_metrics:
         test_metrics = {k: v for k, v in trainer.logged_metrics.items() if k.startswith('test')}
         return_metrics.update(test_metrics)
-    return return_metrics
+    return return_metrics, model
 
 
 

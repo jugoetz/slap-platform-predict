@@ -61,7 +61,9 @@ class DMPNNModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        for k, v in metrics.items():
+            self.log(f"test/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
     def configure_optimizers(self):
@@ -123,7 +125,6 @@ class DMPNNModel(pl.LightningModule):
         return scheduler
 
     def calc_loss(self, preds, truth):
-        # TODO here I might want a different loss or expose the choice through hyperparameters
         if self.hparams.decoder["out_sigmoid"]:
             loss = F.binary_cross_entropy(
                 preds,

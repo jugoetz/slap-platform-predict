@@ -82,7 +82,6 @@ class MPNNEncoder(nn.Module):
         else:
             raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
 
-
     def forward(self,
                 graph: dgl.DGLGraph,
                 ) -> torch.FloatTensor:

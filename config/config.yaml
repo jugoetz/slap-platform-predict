@@ -1,5 +1,5 @@
 # common settings
-gpu: False
+accelerator: cpu  # usually cpu or gpu.
 
 # data
 reaction: True
@@ -28,10 +28,10 @@ optimizer:
   weight_decay: 0
   lr: 0.001
   lr_scheduler:
-    epochs: 100  # should be the same as max_epochs for the desired effect
+    epochs: 5  # should be the same as max_epochs for the desired effect
     lr_min: 1.0e-04
     lr_warmup_step: 2
     scheduler_name: exp_with_linear_warmup
 
 training:
-  max_epochs: 100
+  max_epochs: 5

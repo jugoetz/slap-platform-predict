@@ -1,9 +1,13 @@
-from ax.service.managed_loop import optimize
-from src.cross_validation import cross_validate
 from copy import deepcopy
 
+from ax.service.managed_loop import optimize
 
-def optimize_hyperparameters(hparams, data):
+from src.cross_validation import cross_validate_predefined
+from src.util.definitions import CONFIG_ROOT
+from src.util.io import get_hparam_bounds
+
+
+def optimize_hyperparameters(hparams, data, split_files):
     def objective_function(parameterization):
         """
         Wrapper around cross_validate() for Bayesian optimization with Ax.
@@ -23,25 +27,24 @@ def optimize_hyperparameters(hparams, data):
         hparams_local["encoder"]["depth"] = parameterization["mpnn_depth"]
         hparams_local["decoder"]["depth"] = parameterization["ffn_depth"]
         hparams_local["encoder"]["dropout_ratio"] = parameterization["dropout"]
-        metrics = cross_validate(hparams=hparams_local, data=data)
-        return metrics["val/AUROC_mean"], metrics["val/AUROC_std"]
+        metrics = cross_validate_predefined(hparams=hparams_local,
+                                            data=data,
+                                            split_files=split_files,
+                                            save_models=False,
+                                            return_fold_metrics=False
+                                            )
+        return metrics
 
-    # TODO move this to external file
-    bounds = [{"name": "hidden_size", "type": "range", "bounds": [100, 2500], "value_type": "int"},
-              {"name": "mpnn_depth", "type": "range", "bounds": [3, 6], "value_type": "int"},
-              {"name": "ffn_depth", "type": "range", "bounds": [1, 3], "value_type": "int"},
-              {"name": "dropout", "type": "range", "bounds": [0.0, 0.5], "value_type": "float"},
-              ]
+    bounds = get_hparam_bounds(CONFIG_ROOT / "hparam_bounds.yaml")
 
     best_parameters, values, experiment, model = optimize(parameters=bounds,
                                                           evaluation_function=objective_function,
-                                                          objective_name="val/AUROC_cv",
-                                                          total_trials=1
+                                                          objective_name="val/loss_mean",
+                                                          total_trials=20
                                                           )
 
     # print(experiment.trials.values())
     # print([trial.objective_mean for trial in experiment.trials.values()])
-    # # assemble a dict with
     # TODO logging. All the info is contained in experiment
     return best_parameters, values, experiment
 

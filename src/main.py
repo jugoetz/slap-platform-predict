@@ -35,13 +35,14 @@ split_files = [{"train": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_train.c
                 "test_2D": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_test_2D.csv"}
                for i in range(5)]
 
-aggregate_metrics, fold_metrics = cross_validate_predefined(CONFIG, data, split_files=split_files, save_models=False, return_fold_metrics=True)
+# run cross-validation with configured hparams
+# aggregate_metrics, fold_metrics = cross_validate_predefined(CONFIG, data, split_files=split_files, save_models=False, return_fold_metrics=True)
+# print(aggregate_metrics)
+# print(fold_metrics)
 
-print(aggregate_metrics)
-print(fold_metrics)
 # or run hparam optimization
-# best_params, values, experiment = optimize_hyperparameters(CONFIG, train, trainer)
-# print(best_params, values)
+best_params, values, experiment = optimize_hyperparameters(CONFIG, data, split_files)
+print(best_params, values)
 
 
 

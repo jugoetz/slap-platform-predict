@@ -2,7 +2,7 @@ from src.data.dataloader import SLAPDataset
 from src.util.configuration import CONFIG
 from src.util.definitions import DATA_ROOT, PROJECT_DIR
 from src.cross_validation import cross_validate, cross_validate_predefined
-from src.hyperopt import optimize_hyperparameters
+from src.hyperopt import optimize_hyperparameters_bayes
 from src.train import run_training
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -41,7 +41,7 @@ split_files = [{"train": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_train.c
 # print(fold_metrics)
 
 # or run hparam optimization
-best_params, values, experiment = optimize_hyperparameters(CONFIG, data, split_files)
+best_params, values, experiment = optimize_hyperparameters_bayes(CONFIG, data, split_files)
 print(best_params, values)
 
 

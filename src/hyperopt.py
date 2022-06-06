@@ -7,7 +7,7 @@ from src.util.definitions import CONFIG_ROOT
 from src.util.io import get_hparam_bounds
 
 
-def optimize_hyperparameters(hparams, data, split_files):
+def optimize_hyperparameters_bayes(hparams, data, split_files):
     def objective_function(parameterization):
         """
         Wrapper around cross_validate() for Bayesian optimization with Ax.
@@ -33,7 +33,9 @@ def optimize_hyperparameters(hparams, data, split_files):
                                             save_models=False,
                                             return_fold_metrics=False
                                             )
-        return metrics
+        # note that metrics returned from cross_validate_predefined are tensors, which ax cannot handle
+        # thus we convert to float
+        return {k: v.item() for k, v in metrics.items()}
 
     bounds = get_hparam_bounds(CONFIG_ROOT / "hparam_bounds.yaml")
 

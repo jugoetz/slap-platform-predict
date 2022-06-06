@@ -22,11 +22,14 @@ def optimize_hyperparameters_bayes(hparams, data, split_files):
             tuple: Score and STD for the probed parameters
         """
         hparams_local = deepcopy(hparams)
-        # TODO should these apply to both enc and dec or only to one?
-        hparams_local["encoder"]["hidden_size"] = parameterization["hidden_size"]
+        hparams_local["encoder"]["hidden_size"] = parameterization["mpnn_hidden_size"]
         hparams_local["encoder"]["depth"] = parameterization["mpnn_depth"]
+        hparams_local["decoder"]["hidden_size"] = parameterization["ffn_hidden_size"]
         hparams_local["decoder"]["depth"] = parameterization["ffn_depth"]
         hparams_local["encoder"]["dropout_ratio"] = parameterization["dropout"]
+        hparams_local["decoder"]["dropout_ratio"] = parameterization["dropout"]
+        hparams_local["optimizer"]["lr"] = parameterization["learning_rate"]
+        hparams_local["encoder"]["aggregation"] = parameterization["aggregation"]
         metrics = cross_validate_predefined(hparams=hparams_local,
                                             data=data,
                                             split_files=split_files,

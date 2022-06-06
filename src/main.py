@@ -1,14 +1,12 @@
+from copy import deepcopy
+
 from src.data.dataloader import SLAPDataset
 from src.util.configuration import CONFIG
 from src.util.definitions import DATA_ROOT, PROJECT_DIR
 from src.cross_validation import cross_validate, cross_validate_predefined
 from src.hyperopt import optimize_hyperparameters_bayes
 from src.train import run_training
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.loggers.wandb import WandbLogger
-import torch
-import pandas as pd
+
 
 run_test_set = True
 
@@ -23,9 +21,6 @@ CONFIG["bond_feature_size"] = data.bond_feature_size
 callbacks = []
 # callbacks.append(EarlyStopping(monitor="val/loss", mode="min", patience=5))
 
-# initialize trainer
-# trainer = pl.Trainer(max_epochs=CONFIG["training"]["max_epochs"], log_every_n_steps=1,
-#            default_root_dir=PROJECT_DIR, logger=WandbLogger(), accelerator=config["accelerator"], callbacks=callbacks)
 
 # define split index files
 split_files = [{"train": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_train.csv",
@@ -35,16 +30,23 @@ split_files = [{"train": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_train.c
                 "test_2D": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_test_2D.csv"}
                for i in range(5)]
 
+
+
+# let's search a bunch of hparams we are interested in
+# lrs = [1e-4, 3e-3, 1e-3, 3e-3, 1e-2]
+# enc_hiddensizes = [32, 64, 128, 256, 512, 1028, 2048]
+# enc_depths = [3, 4, 5, 6]
+# dec_hiddensizes = [16, 32, 64, 128, 256]
+# dec_depths = [1, 2, 3]
+# global_dropouts = [0., 0.05, 0.1, 0.2, 0.4, 0.6]
+# aggregation = ["attention", "mean", "max", "sum"]
+
+
 # run cross-validation with configured hparams
 # aggregate_metrics, fold_metrics = cross_validate_predefined(CONFIG, data, split_files=split_files, save_models=False, return_fold_metrics=True)
 # print(aggregate_metrics)
 # print(fold_metrics)
 
-# or run hparam optimization
+# or run bayesian hparam optimization
 best_params, values, experiment = optimize_hyperparameters_bayes(CONFIG, data, split_files)
 print(best_params, values)
-
-
-
-
-

@@ -106,7 +106,7 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
         # each fold needs a new trainer instance b/c it can only fit once
         fold_run_id = f"{cv_run_id}_fold{i}"
         trainer_fold = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
-                                  default_root_dir=PROJECT_DIR, logger=WandbLogger(name=fold_run_id, group=cv_run_id),
+                                  default_root_dir=PROJECT_DIR, logger=WandbLogger(name=fold_run_id, group=cv_run_id, project="slap-gnn"),
                                   accelerator=hparams["accelerator"])
 
         # load indices from file

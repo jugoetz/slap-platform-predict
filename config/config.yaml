@@ -1,5 +1,5 @@
 # common settings
-accelerator: cpu  # usually cpu or gpu.
+accelerator: gpu  # usually cpu or gpu.
 
 # data
 reaction: True
@@ -8,7 +8,7 @@ split_dir_name: outer_4_idx
 
 # model
 encoder:
-  hidden_size: 50  # int
+  hidden_size: 64  # int
   depth: 5  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers
   dropout_ratio: 0.0  # float, probability of dropout
@@ -16,7 +16,7 @@ encoder:
   activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
-  hidden_size: 60  # int
+  hidden_size: 64  # int
   depth: 3  # int, number of hidden layers
   dropout_ratio: 0.0  # float, probability of dropout
   activation: ReLU  # str, any activation from torch.nn can be used

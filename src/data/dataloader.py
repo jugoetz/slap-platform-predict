@@ -11,7 +11,6 @@ from sklearn.model_selection import KFold
 from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeaturizer
 
 from src.data.grapher import build_cgr, build_mol_graph
-from src.util.configuration import CONFIG
 
 
 def collate_fn(batch: List[Tuple[dgl.DGLGraph, torch.tensor]]) -> Tuple[dgl.DGLGraph, torch.tensor]:
@@ -25,6 +24,7 @@ def collate_fn(batch: List[Tuple[dgl.DGLGraph, torch.tensor]]) -> Tuple[dgl.DGLG
     return batched_graphs, batched_labels
 
 
+# NOT USED
 class SLAPDataModule(pl.LightningDataModule):
     """Data module to load different splits of the SLAP data set."""
 
@@ -168,7 +168,7 @@ class SLAPDataset(DGLDataset):
     @property
     def atom_feature_size(self):
         n_atom_features = self.atom_featurizer.feat_size()
-        if CONFIG["reaction"]:
+        if self.reaction:
             return 2 * n_atom_features  # CGR has 2 x features
         else:
             return n_atom_features
@@ -176,7 +176,7 @@ class SLAPDataset(DGLDataset):
     @property
     def bond_feature_size(self):
         n_bond_features = self.bond_featurizer.feat_size()
-        if CONFIG["reaction"]:
+        if self.reaction:
             return 2 * n_bond_features  # CGR has 2 x features
         else:
             return n_bond_features

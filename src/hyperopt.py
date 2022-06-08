@@ -29,7 +29,7 @@ def optimize_hyperparameters_bayes(hparams, data, split_files):
         hparams_local["encoder"]["dropout_ratio"] = parameterization["dropout"]
         hparams_local["decoder"]["dropout_ratio"] = parameterization["dropout"]
         hparams_local["optimizer"]["lr"] = parameterization["learning_rate"]
-        hparams_local["optimizer"]["lr_scheduler"]["lr_min"] = parameterization["learning_rate"]  # we want min_lr to be 1/10th of max lr
+        hparams_local["optimizer"]["lr_scheduler"]["lr_min"] = parameterization["learning_rate"] / 10  # we want min_lr to be 1/10th of max lr
         hparams_local["encoder"]["aggregation"] = parameterization["aggregation"]
         metrics = cross_validate_predefined(hparams=hparams_local,
                                             data=data,

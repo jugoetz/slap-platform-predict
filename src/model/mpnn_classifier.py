@@ -138,3 +138,9 @@ class DMPNNModel(pl.LightningModule):
                 reduction="mean",
             )
         return loss
+
+
+class GCNModel(DMPNNModel):
+    def init_encoder(self):
+        # TODO try GCN here
+        return ...

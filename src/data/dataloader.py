@@ -11,6 +11,7 @@ from sklearn.model_selection import KFold
 from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeaturizer
 
 from src.data.grapher import build_cgr, build_mol_graph
+from src.data.featurizers import ChempropAtomFeaturizer, ChempropBondFeaturizer
 
 
 def collate_fn(batch: List[Tuple[dgl.DGLGraph, torch.tensor]]) -> Tuple[dgl.DGLGraph, torch.tensor]:
@@ -101,26 +102,40 @@ class SLAPDataset(DGLDataset):
 
     After processing, the data set will contain a featurized graph encoding of the molecule or reaction.
     If reaction=True, the encoding will be a condensed graph of reaction (CGR).
+
+    If rdkit_features is True, for each molecule, properties are calculated using rdkit. Note that this is mutually
+    exclusive with reaction=True.
     """
     def __init__(self,
                  name,
                  raw_dir=None,
                  url=None,
                  reaction=False,
+                 rdkit_features=False,
+                 featurizers="dgllife",
                  smiles_columns=("SMILES", ),
                  label_column="label",
                  save_dir=None,
                  force_reload=False,
                  verbose=True):
 
+        if rdkit_features and reaction:
+            raise ValueError("Cannot use rdkit features with reaction input")
+
         self.reaction = reaction
+        self.rdkit_features = rdkit_features  # TODO implement functionality
         self.label_column = label_column
         self.smiles_columns = smiles_columns
 
         # we hardcode featurizers used for the data set. You could make these part of hyperparameter search of course
-        # TODO: set custom Featurizers
-        self.atom_featurizer = CanonicalAtomFeaturizer(atom_data_field="x")
-        self.bond_featurizer = CanonicalBondFeaturizer(bond_data_field="e")
+        if featurizers == "dgllife":
+            self.atom_featurizer = CanonicalAtomFeaturizer(atom_data_field="x")
+            self.bond_featurizer = CanonicalBondFeaturizer(bond_data_field="e")
+        elif featurizers == "chemprop":
+            self.atom_featurizer = ChempropAtomFeaturizer(atom_data_field="x")
+            self.bond_featurizer = ChempropBondFeaturizer(bond_data_field="e")
+        else:
+            raise ValueError("Unexpected value for 'featurizers'")
         self.global_featurizer = None
 
         super(SLAPDataset, self).__init__(name=name,

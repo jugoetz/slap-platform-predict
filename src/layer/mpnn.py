@@ -107,10 +107,8 @@ class MPNNEncoder(nn.Module):
                 - Generate node hidden state h_v by concatenating node features x_v and message m_v, multiply with
                  a learnable matrix
                  - Activate with ReLU
-            4. Readout
-                - Sum over all node hidden states to obtain the hidden state for a molecule
-                (here this function will return)
-                - Pass this to FFN
+            4. Readout / Pooling
+                - Sum (or other pooling operation) over all node hidden states to obtain the hidden state for a molecule
 
         The focus on edges instead of nodes does however not integrate well with the message-passing framework,
         making chemprop's forward() code hard to read or modify. Clearly, if the edges (i.e. the bonds in the chemical sense)

@@ -46,7 +46,7 @@ def optimize_hyperparameters_bayes(hparams, data, split_files):
     best_parameters, values, experiment, model = optimize(parameters=bounds,
                                                           evaluation_function=objective_function,
                                                           objective_name="val/loss_mean",
-                                                          total_trials=200,
+                                                          total_trials=50,
                                                           minimize=True,
                                                           )
 

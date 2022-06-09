@@ -4,21 +4,20 @@ accelerator: gpu  # usually cpu or gpu.
 # data
 reaction: True
 data_name: slap_dataset_reactions.csv
-split_dir_name: outer_4_idx
 
 # model
 encoder:
-  hidden_size: 64  # int
-  depth: 5  # int, >= 3, number of linear layers (?)
+  hidden_size: 850  # int
+  depth: 10  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers
-  dropout_ratio: 0.0  # float, probability of dropout
+  dropout_ratio: 0.5  # float, probability of dropout
   aggregation: attention  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
   activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
   hidden_size: 64  # int
-  depth: 3  # int, number of hidden layers
-  dropout_ratio: 0.0  # float, probability of dropout
+  depth: 2  # int, number of hidden layers
+  dropout_ratio: 0.5  # float, probability of dropout
   activation: ReLU  # str, any activation from torch.nn can be used
   hidden_bias: False  # bool, whether to add bias to hidden layers
   out_bias: False  # bool, whether to add bias to output layer
@@ -26,10 +25,10 @@ decoder:
 
 optimizer:
   weight_decay: 0
-  lr: 0.001
+  lr: 0.0002
   lr_scheduler:
     epochs: 100  # should be the same as max_epochs for the desired effect
-    lr_min: 1.0e-04
+    lr_min: 0.00002
     lr_warmup_step: 2
     scheduler_name: exp_with_linear_warmup
 

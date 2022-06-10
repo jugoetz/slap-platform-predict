@@ -17,12 +17,14 @@ class MPNNEncoder(nn.Module):
     def __init__(self,
                  atom_feature_size: int,
                  bond_feature_size: int,
+                 *,
                  hidden_size: int = 300,
                  bias: bool = False,
                  depth: int = 3,
                  dropout_ratio: float = 0.0,
                  aggregation: str = "mean",
                  activation: Union[str, callable] = "ReLU",
+                 **kwargs,
                  ):
         """
         Several functions from Chemprop are not available as of now (b/c we don't need them):

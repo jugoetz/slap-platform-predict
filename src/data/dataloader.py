@@ -112,12 +112,30 @@ class SLAPDataset(DGLDataset):
                  url=None,
                  reaction=False,
                  rdkit_features=False,
+                 molecular_graph=True,
                  featurizers="dgllife",
                  smiles_columns=("SMILES", ),
                  label_column="label",
                  save_dir=None,
                  force_reload=False,
                  verbose=True):
+        """
+        Args:
+            name (str): File name of the dataset
+            raw_dir (str or path-like): Directory containing data. Default None
+            url (str): Url to fetch data from. Default None
+            reaction (bool): Whether data is a reaction. If True, data will be loaded as CGR. Default False.
+            rdkit_features (bool): Whether to add rdkit features. Default False.
+            molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are bonds).
+                Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their connectivity)
+            featurizers (str): Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop"}.
+                Default "dgllife".
+            smiles_columns (tuple): Headers of columns in data file that contain SMILES strings
+            label_column (str): Header of the column in data file that contains the labels
+            save_dir (str or path-like): Directory to save the processed data set. If None, `raw_dir` is used. Default None.
+            force_reload (bool): Reload data set, ignoring cache. Default False.
+            verbose (bool): Whether to provide verbose output
+        """
 
         if rdkit_features and reaction:
             raise ValueError("Cannot use rdkit features with reaction input")

@@ -3,6 +3,8 @@ import torch
 import torch.nn.functional as F
 import torchmetrics as tm
 
+from dgllife.model.gnn.gcn import GCN
+
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
 
@@ -141,6 +143,17 @@ class DMPNNModel(pl.LightningModule):
 
 
 class GCNModel(DMPNNModel):
+    """
+    GCN model as implemented in DGL-Lifesci.
+
+    Note that this model works on a molecular graph and that its forward method expects a BE-graph input
+    """
     def init_encoder(self):
-        # TODO try GCN here
-        return ...
+        return GCN(in_feats=self.hparams["atom_feature_size"],
+                   hidden_feats=[self.hparams["encoder"]["hidden_size"] for _ in range(self.hparams["encoder"]["depth"])],
+                   gnn_norm=["both" for _ in range(self.hparams["encoder"]["depth"])],
+                   activation=[self.hparams["encoder"]["activation"] for _ in range(self.hparams["encoder"]["depth"])],
+                   batchnorm=[False for _ in range(self.hparams["encoder"]["depth"])],
+                   dropout=[self.hparams["encoder"]["dropout"] for _ in range(self.hparams["encoder"]["depth"])]
+
+                   )

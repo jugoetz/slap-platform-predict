@@ -1,6 +1,3 @@
-"""
-Do the same as grapher but return a CGR as the reaction graph
-"""
 from typing import Optional, Union, Dict, Tuple, List
 
 import dgl
@@ -9,7 +6,7 @@ import torch
 from dgllife.utils.mol_to_graph import mol_to_bigraph
 
 
-from rdkit.Chem import rdChemReactions, MolFromSmiles
+from rdkit.Chem import MolFromSmiles
 from rdkit.Chem.rdchem import Mol
 
 
@@ -17,6 +14,7 @@ def build_mol_graph(mol: Union[str, Mol],
                     atom_featurizer: callable,
                     bond_featurizer: callable,
                     global_featurizer: Optional[callable] = None,
+                    molecular_graph: bool = True,
                     ) -> dgl.DGLGraph:
     """
     Build a graph from a SMILES representing a molecule.
@@ -28,11 +26,13 @@ def build_mol_graph(mol: Union[str, Mol],
         atom_featurizer (callable): Takes a Mol and returns a dict of features
         bond_featurizer (callable): Takes a Mol and returns a dict of features
         global_featurizer (optional): Not implemented. Raises an exception if anything is passed.
+        molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are
+                bonds). Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their
+                connectivity). Default True.
 
     Returns:
         dgl.DGLGraph: Graph-encoding of smiles, with features as provided by featurizers. Nodes represent atoms and
             edges represent bonds.
-            TODO check how edge and reverse edge are ordered here
     """
     if isinstance(mol, str):
         mol = MolFromSmiles(mol)
@@ -47,7 +47,11 @@ def build_mol_graph(mol: Union[str, Mol],
         # could calculate some global feature here and attach it to the graph
         raise NotImplementedError
 
-    return g
+    if molecular_graph:
+        return g
+    else:
+        g_bn = bond_edges_to_bond_nodes(g)
+        return g_bn
 
 
 def build_cgr(
@@ -56,6 +60,7 @@ def build_cgr(
         bond_featurizer: callable,
         global_featurizer: Optional[callable] = None,
         mode: str = "reac_diff",
+        molecular_graph: bool = True
 ) -> dgl.DGLHeteroGraph:
     """
     Build CGR (condensed graph of reaction) for a reaction and featurize nodes.
@@ -80,6 +85,9 @@ def build_cgr(
                 - "reac_prod": Concatenate reactant and product features.
                 - "reac_diff" (default): Concatenate reactant features and (f_prod - f_reac)
                 - "prod_diff": Concatenate product features and (f_reac - f_prod)
+        molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are bonds).
+                Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their
+                connectivity). Default True.
 
     Returns:
         dgl.DGLHeteroGraph: CGR for the reaction.
@@ -100,10 +108,12 @@ def build_cgr(
             f"Could not build CGR for reaction: {reaction_smiles}"
         ) from e
 
-    # as the last step, we transform "bond edges" representation of the CGR to our "bond nodes" representation
-
-    bn_graph = bond_edges_to_bond_nodes(cgr_g)
-    return bn_graph
+    if molecular_graph:
+        return cgr_g
+    else:
+        # as the last step, we transform "bond edges" representation of the CGR to our "bond nodes" representation
+        bn_graph = bond_edges_to_bond_nodes(cgr_g)
+        return bn_graph
 
 
 def bond_edges_to_bond_nodes(graph: dgl.DGLGraph) -> dgl.DGLHeteroGraph:
@@ -445,13 +455,3 @@ def find_indices(arr, values):
     return np.concatenate(idx)
 
 
-def dummy_atom_featurizer(m: Mol):
-    """For testing. Featurizes every atom with its index"""
-    feats = [[a.GetIdx()] for a in m.GetAtoms()]
-    return {"x": torch.FloatTensor(feats)}
-
-
-def dummy_bond_featurizer(m: Mol):
-    """For testing. Featurizes every bond with its index"""
-    feats = [[b.GetIdx()] for b in m.GetBonds() for _ in range(2)]
-    return {"e": torch.FloatTensor(feats)}

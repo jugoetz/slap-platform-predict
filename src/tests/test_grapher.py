@@ -5,8 +5,8 @@ import torch
 from rdkit import Chem
 from rdkit.Chem.rdChemReactions import ReactionFromSmarts
 
-from src.data.grapher import get_atom_to_bond_maps, create_cgr, build_mol_graph, dummy_atom_featurizer, \
-    dummy_bond_featurizer, get_atom_map_numbers, find_indices, atom_and_bond_mapping
+from src.data.grapher import get_atom_to_bond_maps, create_cgr, build_mol_graph, get_atom_map_numbers, find_indices, atom_and_bond_mapping
+from src.data.featurizers import dummy_atom_featurizer, dummy_bond_featurizer
 from src.util.rdkit_util import mol_to_file_with_indices
 
 

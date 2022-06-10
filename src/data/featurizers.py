@@ -1,5 +1,6 @@
 from functools import partial
 
+import torch
 from dgllife.utils.featurizers import (
     BaseAtomFeaturizer,
     BaseBondFeaturizer,
@@ -17,6 +18,7 @@ from dgllife.utils.featurizers import (
     bond_is_in_ring,
     bond_stereo_one_hot
 )
+from rdkit.Chem import Mol
 
 
 class ChempropAtomFeaturizer(BaseAtomFeaturizer):
@@ -100,3 +102,15 @@ class ChempropBondFeaturizer(BaseBondFeaturizer):
                  partial(bond_stereo_one_hot, encode_unknown=True)  # encode_unknown seems unnecessary as one of the options is STEREONONE. But we still follow the ref implementation.
                  ]
             )}, self_loop=False)
+
+
+def dummy_atom_featurizer(m: Mol):
+    """For testing. Featurizes every atom with its index"""
+    feats = [[a.GetIdx()] for a in m.GetAtoms()]
+    return {"x": torch.FloatTensor(feats)}
+
+
+def dummy_bond_featurizer(m: Mol):
+    """For testing. Featurizes every bond with its index"""
+    feats = [[b.GetIdx()] for b in m.GetBonds() for _ in range(2)]
+    return {"e": torch.FloatTensor(feats)}

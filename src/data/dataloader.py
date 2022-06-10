@@ -126,8 +126,9 @@ class SLAPDataset(DGLDataset):
             url (str): Url to fetch data from. Default None
             reaction (bool): Whether data is a reaction. If True, data will be loaded as CGR. Default False.
             rdkit_features (bool): Whether to add rdkit features. Default False.
-            molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are bonds).
-                Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their connectivity)
+            molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are
+                bonds). Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their
+                connectivity). Default True.
             featurizers (str): Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop"}.
                 Default "dgllife".
             smiles_columns (tuple): Headers of columns in data file that contain SMILES strings
@@ -144,6 +145,7 @@ class SLAPDataset(DGLDataset):
         self.rdkit_features = rdkit_features  # TODO implement functionality
         self.label_column = label_column
         self.smiles_columns = smiles_columns
+        self.molecular_graph = molecular_graph
 
         # we hardcode featurizers used for the data set. You could make these part of hyperparameter search of course
         if featurizers == "dgllife":
@@ -177,9 +179,9 @@ class SLAPDataset(DGLDataset):
         smiles = smiles[0]
 
         if self.reaction:
-            self.graphs = [build_cgr(s, self.atom_featurizer, self.bond_featurizer) for s in smiles]
+            self.graphs = [build_cgr(s, self.atom_featurizer, self.bond_featurizer, mode="reac_diff", molecular_graph=self.molecular_graph) for s in smiles]
         else:
-            self.graphs = [build_mol_graph(s, self.atom_featurizer, self.bond_featurizer) for s in smiles]
+            self.graphs = [build_mol_graph(s, self.atom_featurizer, self.bond_featurizer, molecular_graph=self.molecular_graph) for s in smiles]
 
         self.labels = csv_data[self.label_column].values.tolist()
 

@@ -8,7 +8,15 @@ from src.hyperopt import optimize_hyperparameters_bayes
 def main(config, hparam_optimization):
 
     # load data
-    data = SLAPDataset(name=config["data_name"], raw_dir=DATA_ROOT, reaction=config["reaction"], smiles_columns=("SMILES", ), label_column="targets")
+    data = SLAPDataset(name=config["data_name"],
+                       raw_dir=DATA_ROOT,
+                       reaction=config["reaction"],
+                       smiles_columns=("SMILES", ),
+                       label_column="targets",
+                       molecular_graph=config["molecular_graph"],
+                       rdkit_features=config["rdkit_features"],
+                       featurizers=config["featurizers"],
+                       )
 
     # update config with data processing specifics
     config["atom_feature_size"] = data.atom_feature_size

@@ -5,13 +5,13 @@ accelerator: gpu  # usually cpu or gpu.
 reaction: True
 data_name: slap_dataset_reactions.csv
 rdkit_features: False  # bool, if True add rdkit features
-molecular_graph: False  # bool, if True, build graph where atoms->nodes and bonds->edges.
-                       # If False, both atoms and bonds are encoded as edges
+graph_type: bond_edges  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
+                        # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 # model
 encoder:
-  type: D-MPNN  # str, options: {D-MPNN, GCN}
+  type: GCN  # str, options: {D-MPNN, GCN}
   hidden_size: 850  # int
   depth: 10  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers

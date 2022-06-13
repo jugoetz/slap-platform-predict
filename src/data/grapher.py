@@ -14,7 +14,7 @@ def build_mol_graph(mol: Union[str, Mol],
                     atom_featurizer: callable,
                     bond_featurizer: callable,
                     global_featurizer: Optional[callable] = None,
-                    molecular_graph: bool = True,
+                    graph_type: str = "bond_edges",
                     ) -> dgl.DGLGraph:
     """
     Build a graph from a SMILES representing a molecule.
@@ -26,9 +26,10 @@ def build_mol_graph(mol: Union[str, Mol],
         atom_featurizer (callable): Takes a Mol and returns a dict of features
         bond_featurizer (callable): Takes a Mol and returns a dict of features
         global_featurizer (optional): Not implemented. Raises an exception if anything is passed.
-        molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are
-                bonds). Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their
-                connectivity). Default True.
+        graph_type (str): Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
+                    atoms and edges are bonds). These graphs are homogeneous. If "bond_nodes", bond-node graphs will be
+                    formed (both atoms and bonds are nodes, edges represent their connectivity).
+                    Options: {"bond_edges", "bond_nodes"}. Default "bond_edges".
 
     Returns:
         dgl.DGLGraph: Graph-encoding of smiles, with features as provided by featurizers. Nodes represent atoms and
@@ -47,11 +48,14 @@ def build_mol_graph(mol: Union[str, Mol],
         # could calculate some global feature here and attach it to the graph
         raise NotImplementedError
 
-    if molecular_graph:
+    if graph_type == "bond_edges":
         return g
+    elif graph_type == "bond_nodes":
+        # as the last step, we transform "bond edges" representation of the CGR to our "bond nodes" representation
+        bn_graph = bond_edges_to_bond_nodes(g)
+        return bn_graph
     else:
-        g_bn = bond_edges_to_bond_nodes(g)
-        return g_bn
+        raise ValueError("Invalid value for argument 'graph_type'")
 
 
 def build_cgr(
@@ -60,7 +64,7 @@ def build_cgr(
         bond_featurizer: callable,
         global_featurizer: Optional[callable] = None,
         mode: str = "reac_diff",
-        molecular_graph: bool = True
+        graph_type: str = "bond_edges",
 ) -> dgl.DGLHeteroGraph:
     """
     Build CGR (condensed graph of reaction) for a reaction and featurize nodes.
@@ -85,9 +89,10 @@ def build_cgr(
                 - "reac_prod": Concatenate reactant and product features.
                 - "reac_diff" (default): Concatenate reactant features and (f_prod - f_reac)
                 - "prod_diff": Concatenate product features and (f_reac - f_prod)
-        molecular_graph (bool): If True, graphs are formed as molecular graphs (nodes are atoms and edges are bonds).
-                Else, bond-node graphs will be formed (both atoms and bonds are nodes, edges represent their
-                connectivity). Default True.
+        graph_type (str): Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
+                    atoms and edges are bonds). These graphs are homogeneous. If "bond_nodes", bond-node graphs will be
+                    formed (both atoms and bonds are nodes, edges represent their connectivity).
+                    Options: {"bond_edges", "bond_nodes"}. Default "bond_edges".
 
     Returns:
         dgl.DGLHeteroGraph: CGR for the reaction.
@@ -108,12 +113,14 @@ def build_cgr(
             f"Could not build CGR for reaction: {reaction_smiles}"
         ) from e
 
-    if molecular_graph:
+    if graph_type == "bond_edges":
         return cgr_g
-    else:
+    elif graph_type == "bond_nodes":
         # as the last step, we transform "bond edges" representation of the CGR to our "bond nodes" representation
         bn_graph = bond_edges_to_bond_nodes(cgr_g)
         return bn_graph
+    else:
+        raise ValueError("Invalid value for argument 'graph_type'")
 
 
 def bond_edges_to_bond_nodes(graph: dgl.DGLGraph) -> dgl.DGLHeteroGraph:

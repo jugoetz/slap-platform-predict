@@ -4,9 +4,12 @@ import torch.nn.functional as F
 import torchmetrics as tm
 
 from dgllife.model.gnn.gcn import GCN
+from torch import nn
 
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
+from src.layer.pooling import GlobalAttentionPooling, AvgPooling, SumPooling, MaxPooling
+from src.layer.util import get_activation
 
 
 class DMPNNModel(pl.LightningModule):
@@ -146,14 +149,55 @@ class GCNModel(DMPNNModel):
     """
     GCN model as implemented in DGL-Lifesci.
 
-    Note that this model works on a molecular graph and that its forward method expects a BE-graph input
+    Note that this model works on a molecular graph and that its forward method expects a BE-graph input.
+
+    This class has a few hacky elements, due to some differences in the architecture of dgllife models and my own.
+    Mainly:
+        - dgllife encoder does not take care of pooling
+        - dgllife encoder .forward() needs the feature vector to be passed separately
+        - dgllife encoder expects a homogeneous graph
     """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.hparams["encoder"]["aggregation"] == "attention":
+            self.pooling = GlobalAttentionPooling(gate_nn=nn.Linear(self.hparams["encoder"]["hidden_size"], 1),
+                                                  ntype="_N", feat="h_v",
+                                                  get_attention=True)
+        elif self.hparams["encoder"]["aggregation"] == "mean":
+            self.pooling = AvgPooling(ntype="_N", feat="h_v")
+        elif self.hparams["encoder"]["aggregation"] == "sum":
+            self.pooling = SumPooling(ntype="_N", feat="h_v")
+        elif self.hparams["encoder"]["aggregation"] == "max":
+            self.pooling = MaxPooling(ntype="_N", feat="h_v")
+        else:
+            raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
+
     def init_encoder(self):
         return GCN(in_feats=self.hparams["atom_feature_size"],
-                   hidden_feats=[self.hparams["encoder"]["hidden_size"] for _ in range(self.hparams["encoder"]["depth"])],
+                   hidden_feats=[self.hparams["encoder"]["hidden_size"] for _ in
+                                 range(self.hparams["encoder"]["depth"])],
                    gnn_norm=["both" for _ in range(self.hparams["encoder"]["depth"])],
-                   activation=[self.hparams["encoder"]["activation"] for _ in range(self.hparams["encoder"]["depth"])],
+                   activation=[get_activation(self.hparams["encoder"]["activation"]) for _ in
+                               range(self.hparams["encoder"]["depth"])],
                    batchnorm=[False for _ in range(self.hparams["encoder"]["depth"])],
-                   dropout=[self.hparams["encoder"]["dropout"] for _ in range(self.hparams["encoder"]["depth"])]
-
+                   dropout=[self.hparams["encoder"]["dropout_ratio"] for _ in range(self.hparams["encoder"]["depth"])],
                    )
+
+    def _get_preds_loss_metrics(self, batch):
+        # predict for batch
+        cgr_batch, y = batch
+        embedding = self.encoder(cgr_batch, cgr_batch.ndata["x"])
+        with cgr_batch.local_scope():
+            cgr_batch.ndata["h_v"] = embedding
+            if self.hparams["encoder"]["aggregation"] == "attention":
+                embedding_pooled, attention = self.pooling(cgr_batch)
+            else:
+                embedding_pooled = self.pooling(cgr_batch)
+
+        y_hat = self.decoder(embedding_pooled)
+
+        # calculate loss
+        loss = self.calc_loss(y_hat, y)
+
+        return y_hat, loss, {k: v(y_hat, y) for k, v in self.metrics.items()}

@@ -4,7 +4,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
-from src.model.mpnn_classifier import DMPNNModel
+from src.model.mpnn_classifier import DMPNNModel, GCNModel
 from src.util.definitions import PROJECT_DIR, LOG_DIR
 from src.util.logging import generate_run_id
 from src.data.dataloader import collate_fn
@@ -55,7 +55,12 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
             raise ValueError("When return_test_metrics is True, as test dataloader has to be passed.")
 
     # initialize model
-    model = DMPNNModel(**hparams)
+    if hparams["encoder"]["type"] == "D-MPNN":
+        model = DMPNNModel(**hparams)
+    elif hparams["encoder"]["type"] == "GCN":
+        model = GCNModel(**hparams)
+    else:
+        raise ValueError("Invalid model type")
 
     # run training
     trainer.fit(model, train_dataloaders=train, val_dataloaders=val)

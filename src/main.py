@@ -13,7 +13,7 @@ def main(config, hparam_optimization):
                        reaction=config["reaction"],
                        smiles_columns=("SMILES", ),
                        label_column="targets",
-                       molecular_graph=config["molecular_graph"],
+                       graph_type=config["graph_type"],
                        rdkit_features=config["rdkit_features"],
                        featurizers=config["featurizers"],
                        )
@@ -44,6 +44,6 @@ def main(config, hparam_optimization):
 
 if __name__ == "__main__":
     CONFIG = get_config(CONFIG_ROOT / "config.yaml")
-    hparam_optimization = False  # invoke hparam sweep if True, else invoke single-point training
+    hparam_optimization = True  # invoke hparam sweep if True, else invoke single-point training
     main(CONFIG, hparam_optimization)
 

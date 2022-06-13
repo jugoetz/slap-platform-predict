@@ -1,28 +1,28 @@
 - bounds:
   - 16
   - 2048
-  name: mpnn_hidden_size
+  name: encoder_hidden_size
   type: range
   value_type: int
 
 - bounds:
   - 3
   - 6
-  name: mpnn_depth
+  name: encoder_depth
   type: range
   value_type: int
 
 - bounds:
   - 16
   - 128
-  name: ffn_hidden_size
+  name: decoder_hidden_size
   type: range
   value_type: int
 
 - bounds:
   - 1
   - 3
-  name: ffn_depth
+  name: decoder_depth
   type: range
   value_type: int
 

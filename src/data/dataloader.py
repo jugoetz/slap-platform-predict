@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import dgl
 from dgl.data import DGLDataset
@@ -7,18 +7,22 @@ import pandas as pd
 from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeaturizer
 
 from src.data.grapher import build_cgr, build_mol_graph
-from src.data.featurizers import ChempropAtomFeaturizer, ChempropBondFeaturizer
+from src.data.featurizers import ChempropAtomFeaturizer, ChempropBondFeaturizer, RDKit2DGlobalFeaturizer
 
 
-def collate_fn(batch: List[Tuple[dgl.DGLGraph, torch.tensor]]) -> Tuple[dgl.DGLGraph, torch.tensor]:
+def collate_fn(batch: List[Tuple[dgl.DGLGraph, Optional[list], torch.tensor]]) -> Tuple[dgl.DGLGraph, Optional[torch.tensor], torch.tensor]:
     """Collate a list of samples into a batch, i.e. into a single tuple representing the entire batch"""
 
-    graphs, labels = map(list, zip(*batch))
+    graphs, global_features, labels = map(list, zip(*batch))
 
     batched_graphs = dgl.batch(graphs)
+    if global_features[0] is None:
+        batched_global_features = None
+    else:
+        batched_global_features = torch.tensor(global_features, dtype=torch.float32)
     batched_labels = torch.tensor(labels)
 
-    return batched_graphs, batched_labels
+    return batched_graphs, batched_global_features, batched_labels
 
 
 class SLAPDataset(DGLDataset):
@@ -67,16 +71,13 @@ class SLAPDataset(DGLDataset):
             verbose (bool): Whether to provide verbose output
         """
 
-        if rdkit_features and reaction:
-            raise ValueError("Cannot use rdkit features with reaction input")
-
         self.reaction = reaction
-        self.rdkit_features = rdkit_features  # TODO implement functionality
         self.label_column = label_column
         self.smiles_columns = smiles_columns
-        self.graph_type = graph_type
+        self.graph_type = graph_type  # whether to form BE- or BN-graph
+        self.global_features = None  # container for global features e.g. rdkit
 
-        # we hardcode featurizers used for the data set. You could make these part of hyperparameter search of course
+        # featurizer to obtain atom and bond features
         if featurizers == "dgllife":
             self.atom_featurizer = CanonicalAtomFeaturizer(atom_data_field="x")
             self.bond_featurizer = CanonicalBondFeaturizer(bond_data_field="e")
@@ -85,7 +86,10 @@ class SLAPDataset(DGLDataset):
             self.bond_featurizer = ChempropBondFeaturizer(bond_data_field="e")
         else:
             raise ValueError("Unexpected value for 'featurizers'")
-        self.global_featurizer = None
+
+        # global featurizer
+        if rdkit_features:
+            self.global_featurizer = RDKit2DGlobalFeaturizer(normalize=True)
 
         super(SLAPDataset, self).__init__(name=name,
                                           url=url,
@@ -112,6 +116,14 @@ class SLAPDataset(DGLDataset):
         else:
             self.graphs = [build_mol_graph(s, self.atom_featurizer, self.bond_featurizer, graph_type=self.graph_type) for s in smiles]
 
+        if self.global_featurizer:
+            if self.reaction:
+                # if it is a reaction, we featurize for both reactants, then concatenate
+                self.global_features = [[*self.global_featurizer.process(s.split(">>")[0].split(".")[0]), *self.global_featurizer.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
+            else:
+                # if instead we get a single molecule, we just featurize for that
+                self.global_features = [self.global_featurizer.process(s) for s in smiles]
+
         self.labels = csv_data[self.label_column].values.tolist()
 
     def __getitem__(self, idx):
@@ -123,7 +135,7 @@ class SLAPDataset(DGLDataset):
         Returns:
             (dgl.DGLGraph, Tensor)
         """
-        return self.graphs[idx], self.labels[idx]
+        return self.graphs[idx], self.global_features[idx], self.labels[idx]
 
     def __len__(self):
         """Number of graphs in the dataset"""
@@ -149,3 +161,13 @@ class SLAPDataset(DGLDataset):
     def feature_size(self):
         return self.atom_feature_size + self.bond_feature_size
 
+    @property
+    def global_feature_size(self):
+        if self.global_featurizer:
+            n_global_features = self.global_featurizer.feat_size
+            if self.reaction:
+                return 2 * n_global_features  # for 2 reactants we have 2 x features
+            else:
+                return n_global_features
+        else:
+            return 0

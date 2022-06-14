@@ -30,7 +30,7 @@ class DMPNNModel(pl.LightningModule):
                            )
 
     def init_decoder(self):
-        return FFN(in_size=self.hparams.encoder["hidden_size"],
+        return FFN(in_size=self.hparams.encoder["hidden_size"] + self.hparams["global_feature_size"],
                    out_size=1,
                    **self.hparams.decoder,
                    )
@@ -41,9 +41,12 @@ class DMPNNModel(pl.LightningModule):
     def _get_preds_loss_metrics(self, batch):
 
         # predict for batch
-        cgr_batch, y = batch
+        cgr_batch, global_features, y = batch
         embedding = self.encoder(cgr_batch)
-        y_hat = self.decoder(embedding)
+        if global_features is not None:
+            y_hat = self.decoder(torch.cat((embedding, global_features), dim=1))
+        else:
+            y_hat = self.decoder(embedding)
 
         # calculate loss
         loss = self.calc_loss(y_hat, y)
@@ -186,7 +189,7 @@ class GCNModel(DMPNNModel):
 
     def _get_preds_loss_metrics(self, batch):
         # predict for batch
-        cgr_batch, y = batch
+        cgr_batch, global_features, y = batch
         embedding = self.encoder(cgr_batch, cgr_batch.ndata["x"])
         with cgr_batch.local_scope():
             cgr_batch.ndata["h_v"] = embedding
@@ -195,7 +198,11 @@ class GCNModel(DMPNNModel):
             else:
                 embedding_pooled = self.pooling(cgr_batch)
 
-        y_hat = self.decoder(embedding_pooled)
+        if global_features is not None:
+            y_hat = self.decoder(torch.cat((embedding_pooled, global_features), dim=1))
+        else:
+            y_hat = self.decoder(embedding_pooled)
+
 
         # calculate loss
         loss = self.calc_loss(y_hat, y)

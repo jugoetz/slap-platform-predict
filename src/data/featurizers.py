@@ -19,6 +19,7 @@ from dgllife.utils.featurizers import (
     bond_stereo_one_hot
 )
 from rdkit.Chem import Mol
+from descriptastorus.descriptors.DescriptorGenerator import MakeGenerator
 
 
 class ChempropAtomFeaturizer(BaseAtomFeaturizer):
@@ -102,6 +103,33 @@ class ChempropBondFeaturizer(BaseBondFeaturizer):
                  partial(bond_stereo_one_hot, encode_unknown=True)  # encode_unknown seems unnecessary as one of the options is STEREONONE. But we still follow the ref implementation.
                  ]
             )}, self_loop=False)
+
+
+class RDKit2DGlobalFeaturizer:
+    """
+    Molecule featurization with RDKit 2D features. Uses descriptastorus (https://github.com/bp-kelley/descriptastorus).
+    """
+    def __init__(self, normalize: bool = True):
+        """
+        Args:
+            normalize (bool): If True, normalize feature values. The normalization uses a CDF fitted on a NIBR compound
+                                catalogue. Default True.
+        """
+        if normalize:
+            self.features_generator = MakeGenerator(("rdkit2dnormalized", ))
+        else:
+            self.features_generator = MakeGenerator(("rdkit2d",))
+
+    def process(self, smiles: str) -> list:
+        features = self.features_generator.process(smiles)
+        if features is None:  # fail
+            raise ValueError(f"ERROR: could not generate rdkit features for SMILES '{smiles}'")
+        else:
+            return features[1:]  # do not return the initial 'True'.
+
+    @property
+    def feat_size(self) -> int:
+        return len(self.features_generator.process("C")) - 1  # -1 for the initial 'True' that we do not return
 
 
 def dummy_atom_featurizer(m: Mol):

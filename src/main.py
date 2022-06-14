@@ -21,6 +21,7 @@ def main(config, hparam_optimization):
     # update config with data processing specifics
     config["atom_feature_size"] = data.atom_feature_size
     config["bond_feature_size"] = data.bond_feature_size
+    config["global_feature_size"] = data.global_feature_size
 
     # define split index files
     split_files = [{"train": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_train.csv",

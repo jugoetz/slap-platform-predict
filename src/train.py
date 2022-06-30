@@ -1,8 +1,14 @@
+import pickle
+
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, roc_auc_score, roc_curve, \
+    precision_recall_curve, auc, classification_report
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
+from sklearn.linear_model import RidgeClassifier
+from xgboost import XGBClassifier
 
 from src.model.mpnn_classifier import DMPNNModel, GCNModel
 from src.util.definitions import PROJECT_DIR, LOG_DIR
@@ -34,9 +40,9 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
     Args:
         train (torch.utils.data.DataLoader): Training data
         val: (torch.utils.data.DataLoader): Validation data
-        test: (torch.utils.data.DataLoader, optional): Test data. Only used if return_test_metrics is True.
         hparams (dict): Model hyperparameters
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
+        test: (torch.utils.data.DataLoader, optional): Test data. Only used if return_test_metrics is True.
         return_test_metrics (bool): Whether to return metrics on test set. If True, test has to be given.
             Defaults to False.
         save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
@@ -80,5 +86,92 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
     return return_metrics, model
 
 
+def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False):
+    """
+    Trains a sklearn model on a given data split with one set of hyperparameters. By default, returns the evaluation
+    metrics on the validation set.
+
+    Args:
+        train (torch.utils.data.DataLoader): Training data
+        val: (torch.utils.data.DataLoader): Validation data
+        test: (Union[DataLoader, Dict[torch.utils.data.DataLoader]], optional): Test data. If data is given, test metrics will be returned.
+        hparams (dict): Model hyperparameters
+        run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
+            Defaults to False.
+        save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
+
+    Returns:
+        dict: Dictionary of validation metrics and, test DataLoader(s) are passed, additionally test metrics
+        Model: Trained model
+    """
+    # generate run_id if None is passed
+    if not run_id:
+        run_id = generate_run_id()
+
+    # initialize model
+    if hparams["decoder"] == "sklearn_Ridge":
+        model = RidgeClassifier(alpha=hparams["decoder"]["alpha"])
+    elif hparams["decoder"] == "sklearn_XGB":
+        model = XGBClassifier(**hparams["decoder"])
+    else:
+        raise ValueError("Invalid model type")
+
+    # get training and validation data
+    train_graphs, train_global_features, train_fingerprints, train_labels = map(list, zip(*train))
+    val_graphs, val_global_features, val_fingerprints, val_labels = map(list, zip(*val))
+
+    if hparams["encoder"]["type"] == "RDKit":
+        X_train = train_global_features
+        X_val = val_global_features
+    elif hparams["encoder"]["type"] == "FP":
+        X_train = train_fingerprints
+        X_val = val_fingerprints
+    else:
+        raise ValueError("Invalid encoder type for sklearn model")
+
+    # run training
+    model.fit(X_train, train_labels)
+
+    # evaluate on validation set
+    val_pred = model.predict(X_val)
+    val_metrics = calculate_metrics(val_labels, val_pred)
+
+    # optionally, save model
+    if save_model:
+        with open(LOG_DIR / run_id / "model_checkpoints" / "model.pkl", "wb") as f:
+            pickle.dump(model, f)
+
+    # optionally, run test set
+    if test:
+        test_metrics = {}
+        for k, v in test.items():
+            test_graphs, test_global_features, test_fingerprints, test_labels = map(list, zip(*v))
+            if hparams["encoder"]["type"] == "RDKit":
+                X_test = test_global_features
+            elif hparams["encoder"]["type"] == "FP":
+                X_test = test_fingerprints
+            else:
+                raise ValueError("Invalid encoder type for sklearn model")
+            test_pred = model.predict(X_test)
+            test_metrics[k] = calculate_metrics(test_labels, test_pred)
+
+    return_metrics = {"val": val_metrics}
+    if test:
+        return_metrics.update(test_metrics)
+    return return_metrics, model
+
+
+def calculate_metrics(y_true, y_pred):
+    metrics = {k: v for k, v in
+               zip(["precision", "recall", "f1"], precision_recall_fscore_support(y_true, y_pred))}
+    metrics["accuracy"] = accuracy_score(y_true, y_pred)
+    metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
+    metrics["roc_auc"] = roc_auc_score(y_true, y_pred)
+    metrics["roc_curve"] = roc_curve(y_true, y_pred)
+    metrics["pr_curve"] = precision_recall_curve(y_true, y_pred)
+    metrics["pr_auc"] = auc(metrics["pr_curve"][0], metrics["pr_curve"][1])
+    metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
+    metrics["classification_report"] = classification_report(y_true, y_pred)
+    return metrics
 
 

@@ -41,7 +41,7 @@ class DMPNNModel(pl.LightningModule):
     def _get_preds_loss_metrics(self, batch):
 
         # predict for batch
-        cgr_batch, global_features, y = batch
+        cgr_batch, global_features, fingerprints, y = batch
         embedding = self.encoder(cgr_batch)
         if global_features is not None:
             y_hat = self.decoder(torch.cat((embedding, global_features), dim=1))

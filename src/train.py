@@ -1,10 +1,11 @@
 import pickle
 
 import pytorch_lightning as pl
+import wandb
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, roc_auc_score, roc_curve, \
-    precision_recall_curve, auc, classification_report
+    precision_recall_curve, auc, classification_report, log_loss
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from sklearn.linear_model import RidgeClassifier
@@ -86,7 +87,7 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
     return return_metrics, model
 
 
-def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False):
+def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None, save_model=False):
     """
     Trains a sklearn model on a given data split with one set of hyperparameters. By default, returns the evaluation
     metrics on the validation set.
@@ -97,7 +98,8 @@ def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False)
         test: (Union[DataLoader, Dict[torch.utils.data.DataLoader]], optional): Test data. If data is given, test metrics will be returned.
         hparams (dict): Model hyperparameters
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
-            Defaults to False.
+            Defaults to None.
+        group_run_id (optional, str): Id to identify the run group. Default None.
         save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
 
     Returns:
@@ -107,6 +109,8 @@ def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False)
     # generate run_id if None is passed
     if not run_id:
         run_id = generate_run_id()
+
+    wandb.init(reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams)
 
     # initialize model
     if hparams["decoder"]["type"] == "Ridge":
@@ -165,15 +169,20 @@ def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False)
 
     if test:
         return_metrics.update(test_metrics)
+
+    wandb.log(return_metrics)
+    wandb.finish()
     return return_metrics, model
 
 
-def calculate_metrics(y_true, y_pred, detailed=False):
+def calculate_metrics(y_true, y_pred, pred_proba=False, detailed=False):
     """
     Calculate a bunch of metrics for classification problems.
     Args:
         y_true: True labels
-        y_pred: Predicted labels
+        y_pred: Predicted labels or probabilities
+        pred_proba: Whether y_pred is a probability, or a label. If False, y_pred is assumed to be a label and
+            log_loss is not calculated. Defaults to False.
         detailed: Whether to include ROC curve, PR curve, and confusion matrix. Defaults to False.
 
     Returns:
@@ -184,7 +193,9 @@ def calculate_metrics(y_true, y_pred, detailed=False):
     metrics = {k: v for k, v in
                zip(["precision", "recall", "f1"], precision_recall_fscore_support(y_true, y_pred, average="binary", pos_label=1))}
     metrics["accuracy"] = accuracy_score(y_true, y_pred)
-    metrics["roc_auc"] = roc_auc_score(y_true, y_pred)
+    metrics["AUROC"] = roc_auc_score(y_true, y_pred)
+    if pred_proba is True:
+        metrics["loss"] = log_loss(y_true, y_pred)
     if detailed is True:
         metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
         metrics["roc_curve"] = roc_curve(y_true, y_pred)

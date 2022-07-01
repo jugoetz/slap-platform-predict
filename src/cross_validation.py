@@ -182,8 +182,7 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
 
     # iterate folds
     for i, fold in enumerate(split_files):
-
-        # each fold needs a new trainer instance b/c it can only fit once
+        # each fold needs a new id
         fold_run_id = f"{cv_run_id}_fold{i}"
 
         # load indices from file
@@ -194,10 +193,9 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
         fold_metrics, model = train_sklearn(data_splitted["train"], data_splitted["val"], hparams, run_id=fold_run_id,
                                             test={k: v for k, v in data_splitted.items() if k.startswith("test")},
                                             save_model=save_models)
+
         for k, v in fold_metrics.items():
             metrics[k][i] = v
-
-        # wandb.finish()
 
     # aggregate fold metrics (aggregation is not possible for all of them. E.g. makes no sense to aggregate roc curves)
     aggregated_metrics = {}

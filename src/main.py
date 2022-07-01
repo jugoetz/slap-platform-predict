@@ -1,7 +1,7 @@
 from src.data.dataloader import SLAPDataset
 from src.util.configuration import get_config
 from src.util.definitions import DATA_ROOT, CONFIG_ROOT
-from src.cross_validation import cross_validate, cross_validate_predefined
+from src.cross_validation import cross_validate_predefined, cross_validate_sklearn
 from src.hyperopt import optimize_hyperparameters_bayes
 
 
@@ -37,7 +37,10 @@ def main(config, hparam_optimization):
         print(best_params, values)
     else:
         # run cross-validation with configured hparams
-        aggregate_metrics, fold_metrics = cross_validate_predefined(config, data, split_files=split_files, save_models=False, return_fold_metrics=True)
+        if config["decoder"]["type"] == "FFN":
+            aggregate_metrics, fold_metrics = cross_validate_predefined(config, data, split_files=split_files, save_models=False, return_fold_metrics=True)
+        else:
+            aggregate_metrics, fold_metrics = cross_validate_sklearn(config, data, split_files=split_files, save_models=False, return_fold_metrics=True)
         print(aggregate_metrics)
         print(fold_metrics)
     return
@@ -45,6 +48,6 @@ def main(config, hparam_optimization):
 
 if __name__ == "__main__":
     CONFIG = get_config(CONFIG_ROOT / "config.yaml")
-    hparam_optimization = True  # invoke hparam sweep if True, else invoke single-point training
+    hparam_optimization = False  # invoke hparam sweep if True, else invoke single-point training
     main(CONFIG, hparam_optimization)
 

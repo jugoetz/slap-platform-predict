@@ -5,13 +5,14 @@ accelerator: gpu  # usually cpu or gpu.
 reaction: True
 data_name: slap_dataset_reactions.csv
 rdkit_features: True  # bool, if True add rdkit features
+fingerprints: True  # bool, if True add fingerprints
 graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
                         # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 # model
 encoder:
-  type: D-MPNN  # str, options: {D-MPNN, GCN}
+  type: RDKit  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
   hidden_size: 850  # int
   depth: 10  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers
@@ -20,13 +21,29 @@ encoder:
   activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
-  hidden_size: 64  # int
-  depth: 2  # int, number of hidden layers
-  dropout_ratio: 0.5  # float, probability of dropout
-  activation: ReLU  # str, any activation from torch.nn can be used
-  hidden_bias: False  # bool, whether to add bias to hidden layers
-  out_bias: False  # bool, whether to add bias to output layer
-  out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
+  type: Ridge  # str, options: {FFN, Ridge, XGB}.
+  FFN:
+    hidden_size: 64  # int
+    depth: 2  # int, number of hidden layers
+    dropout_ratio: 0.5  # float, probability of dropout
+    activation: ReLU  # str, any activation from torch.nn can be used
+    hidden_bias: False  # bool, whether to add bias to hidden layers
+    out_bias: False  # bool, whether to add bias to output layer
+    out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
+
+  # Ridge parameters
+  Ridge:
+    alpha: 0.1  # float, alpha for Ridge
+
+  # XGBoost parameters
+  XGB:
+    n_estimators: 100  # int, number of estimators for XGBoost
+    learning_rate: 0.1  # float, learning rate for XGBoost
+    max_depth: 6  # int, max depth for XGBoost
+    gamma: 0.3  # float, for XGBoost:  Minimum loss reduction required to make a further partition on a leaf node of the tree.
+    colsample_bytree: 0.5  # float, for XGBoost. Subsample ratio of columns when constructing each tree.
+    reg_alpha: 0  # float, L1 regularization for XGBoost
+    reg_lambda: 1  # float, L2 regularization for XGBoost
 
 optimizer:
   weight_decay: 0

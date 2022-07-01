@@ -1,5 +1,7 @@
 from collections import defaultdict
+import statistics
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import wandb
@@ -176,7 +178,7 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
     cv_run_id = generate_run_id()
 
     # dict to hold fold metrics
-    metrics = defaultdict(list)
+    metrics = defaultdict(lambda: np.zeros((len(split_files),)))
 
     # iterate folds
     for i, fold in enumerate(split_files):
@@ -189,20 +191,22 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
 
         # instantiate Dataset splits instead of DataLoaders
         data_splitted = {k: [data[i] for i in v] for k, v in idx.items()}
-        fold_metrics_val, model = train_sklearn(data_splitted["train"], data_splitted["val"], hparams, run_id=fold_run_id,
-                                                test={k: v for k, v in data_splitted.items() if k.startswith("test")}, save_model=save_models)
-        for k, v in fold_metrics_val.items():
-            metrics[k].append(v)
+        fold_metrics, model = train_sklearn(data_splitted["train"], data_splitted["val"], hparams, run_id=fold_run_id,
+                                            test={k: v for k, v in data_splitted.items() if k.startswith("test")},
+                                            save_model=save_models)
+        for k, v in fold_metrics.items():
+            metrics[k][i] = v
 
-        wandb.finish()
+        # wandb.finish()
 
-    # aggregate fold metrics
-    metrics = {k: torch.stack(v) for k, v in metrics.items()}
-    metrics_return = {k + "_mean": torch.mean(v) for k, v in metrics.items()}
-    metrics_std = {k + "_std": torch.std(v) for k, v in metrics.items()}
-    metrics_return.update(metrics_std)
+    # aggregate fold metrics (aggregation is not possible for all of them. E.g. makes no sense to aggregate roc curves)
+    aggregated_metrics = {}
+    for k, v in metrics.items():
+        if k.endswith(
+                ("precision", "recall", "f1", "accuracy", "roc_auc")):  # these are the metrics that can be aggregated
+            aggregated_metrics[k + "_mean"], aggregated_metrics[k + "_std"] = v.mean(), v.std()
 
     if return_fold_metrics:
-        return metrics_return, metrics
+        return aggregated_metrics, metrics
     else:
-        return metrics_return
+        return aggregated_metrics

@@ -128,21 +128,25 @@ class SLAPDataset(DGLDataset):
         else:
             self.graphs = [build_mol_graph(s, self.atom_featurizer, self.bond_featurizer, graph_type=self.graph_type) for s in smiles]
 
-        if self.global_featurizer:
+        if hasattr(self, "global_featurizer"):
             if self.reaction:
                 # if it is a reaction, we featurize for both reactants, then concatenate
                 self.global_features = [[*self.global_featurizer.process(s.split(">>")[0].split(".")[0]), *self.global_featurizer.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
             else:
                 # if instead we get a single molecule, we just featurize for that
                 self.global_features = [self.global_featurizer.process(s) for s in smiles]
+        else:
+            self.global_features = [None for s in smiles]
 
-        if self.fingerprinter:
+        if hasattr(self, "fingerprinter"):
             if self.reaction:
                 # if it is a reaction, we featurize for both reactants, then concatenate
                 self.fingerprint = [[*self.fingerprinter.process(s.split(">>")[0].split(".")[0]), *self.fingerprinter.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
             else:
                 # if instead we get a single molecule, we just featurize for that
                 self.fingerprint = [self.fingerprinter.process(s) for s in smiles]
+        else:
+            self.fingerprint = [None for s in smiles]
 
         self.labels = csv_data[self.label_column].values.tolist()
 

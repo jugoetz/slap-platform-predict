@@ -11,8 +11,8 @@ from sklearn.linear_model import RidgeClassifier
 from xgboost import XGBClassifier
 
 from src.model.mpnn_classifier import DMPNNModel, GCNModel
-from src.util.definitions import PROJECT_DIR, LOG_DIR
-from src.util.logging import generate_run_id
+from src.util.definitions import LOG_DIR
+from src.util.logging import generate_run_id, concatenate_to_dict_keys
 from src.data.dataloader import collate_fn
 
 
@@ -109,10 +109,10 @@ def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False)
         run_id = generate_run_id()
 
     # initialize model
-    if hparams["decoder"] == "sklearn_Ridge":
-        model = RidgeClassifier(alpha=hparams["decoder"]["alpha"])
-    elif hparams["decoder"] == "sklearn_XGB":
-        model = XGBClassifier(**hparams["decoder"])
+    if hparams["decoder"]["type"] == "Ridge":
+        model = RidgeClassifier(**hparams["decoder"]["Ridge"])
+    elif hparams["decoder"]["type"] == "XGB":
+        model = XGBClassifier(**hparams["decoder"]["XGB"])
     else:
         raise ValueError("Invalid model type")
 
@@ -132,9 +132,13 @@ def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False)
     # run training
     model.fit(X_train, train_labels)
 
+    # evaluate on training set
+    train_pred = model.predict(X_train)
+    train_metrics = concatenate_to_dict_keys(calculate_metrics(train_labels, train_pred), prefix="train/")
+
     # evaluate on validation set
     val_pred = model.predict(X_val)
-    val_metrics = calculate_metrics(val_labels, val_pred)
+    val_metrics = concatenate_to_dict_keys(calculate_metrics(val_labels, val_pred), prefix="val/")
 
     # optionally, save model
     if save_model:
@@ -153,25 +157,36 @@ def train_sklearn(train, val, hparams, run_id=None, test=None, save_model=False)
             else:
                 raise ValueError("Invalid encoder type for sklearn model")
             test_pred = model.predict(X_test)
-            test_metrics[k] = calculate_metrics(test_labels, test_pred)
+            test_metrics.update(concatenate_to_dict_keys(calculate_metrics(test_labels, test_pred), f"{k}/"))
 
-    return_metrics = {"val": val_metrics}
+    return_metrics = {}
+    return_metrics.update(train_metrics)
+    return_metrics.update(val_metrics)
+
     if test:
         return_metrics.update(test_metrics)
     return return_metrics, model
 
 
-def calculate_metrics(y_true, y_pred):
+def calculate_metrics(y_true, y_pred, detailed=False):
+    """
+    Calculate a bunch of metrics for classification problems.
+    Args:
+        y_true: True labels
+        y_pred: Predicted labels
+        detailed: Whether to include ROC curve, PR curve, and confusion matrix. Defaults to False.
+
+    Returns:
+        dict: Dictionary of metrics
+
+    """
+
     metrics = {k: v for k, v in
-               zip(["precision", "recall", "f1"], precision_recall_fscore_support(y_true, y_pred))}
+               zip(["precision", "recall", "f1"], precision_recall_fscore_support(y_true, y_pred, average="binary", pos_label=1))}
     metrics["accuracy"] = accuracy_score(y_true, y_pred)
-    metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
     metrics["roc_auc"] = roc_auc_score(y_true, y_pred)
-    metrics["roc_curve"] = roc_curve(y_true, y_pred)
-    metrics["pr_curve"] = precision_recall_curve(y_true, y_pred)
-    metrics["pr_auc"] = auc(metrics["pr_curve"][0], metrics["pr_curve"][1])
-    metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
-    metrics["classification_report"] = classification_report(y_true, y_pred)
+    if detailed is True:
+        metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
+        metrics["roc_curve"] = roc_curve(y_true, y_pred)
+        metrics["pr_curve"] = precision_recall_curve(y_true, y_pred)
     return metrics
-
-

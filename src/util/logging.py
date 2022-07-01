@@ -1,5 +1,6 @@
 import datetime
 import random
+from typing import Optional
 
 
 def generate_run_id():
@@ -11,3 +12,25 @@ def generate_run_id():
     """
     curr_datetime = datetime.datetime.now()
     return f"{curr_datetime.date()}-{curr_datetime.hour}{curr_datetime.minute}{curr_datetime.second}_{random.randint(100000, 999999)}"
+
+
+def concatenate_to_dict_keys(dictionary: dict,
+                             prefix: Optional[str] = None,
+                             suffix: Optional[str] = None
+                             ) -> dict:
+    """
+    Concatenates keys of a dictionary with a prefix and/or suffix.
+    """
+    new = {}
+    if prefix and suffix:
+        for k, v in dictionary.items():
+            new[prefix + k + suffix] = v
+    elif prefix:
+        for k, v in dictionary.items():
+            new[prefix + k] = v
+    elif suffix:
+        for k, v in dictionary.items():
+            new[k + suffix] = v
+    else:
+        new = dictionary
+    return new

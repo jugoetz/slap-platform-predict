@@ -2,7 +2,7 @@ from copy import deepcopy
 
 from ax.service.managed_loop import optimize
 
-from src.cross_validation import cross_validate_predefined
+from src.cross_validation import cross_validate_predefined, cross_validate_sklearn
 from src.util.definitions import CONFIG_ROOT
 from src.util.io import get_hparam_bounds
 

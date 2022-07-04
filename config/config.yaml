@@ -6,13 +6,13 @@ reaction: True
 data_name: slap_dataset_reactions.csv
 rdkit_features: True  # bool, if True add rdkit features
 fingerprints: True  # bool, if True add fingerprints
-graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
+graph_type: bond_edges  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
                         # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 # model
 encoder:
-  type: RDKit  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
+  type: GCN  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
   hidden_size: 850  # int
   depth: 10  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers
@@ -22,14 +22,13 @@ encoder:
 
 decoder:
   type: FFN  # str, options: {FFN}.
-  FFN:
-    hidden_size: 64  # int
-    depth: 2  # int, number of hidden layers
-    dropout_ratio: 0.5  # float, probability of dropout
-    activation: ReLU  # str, any activation from torch.nn can be used
-    hidden_bias: False  # bool, whether to add bias to hidden layers
-    out_bias: False  # bool, whether to add bias to output layer
-    out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
+  hidden_size: 64  # int
+  depth: 2  # int, number of hidden layers
+  dropout_ratio: 0.5  # float, probability of dropout
+  activation: ReLU  # str, any activation from torch.nn can be used
+  hidden_bias: False  # bool, whether to add bias to hidden layers
+  out_bias: False  # bool, whether to add bias to output layer
+  out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
 
 optimizer:
   weight_decay: 0

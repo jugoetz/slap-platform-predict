@@ -163,6 +163,20 @@ class GCNModel(DMPNNModel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.init_pooling()
+
+    def init_encoder(self):
+        return GCN(in_feats=self.hparams["atom_feature_size"],
+                   hidden_feats=[self.hparams["encoder"]["hidden_size"] for _ in
+                                 range(self.hparams["encoder"]["depth"])],
+                   gnn_norm=["both" for _ in range(self.hparams["encoder"]["depth"])],
+                   activation=[get_activation(self.hparams["encoder"]["activation"]) for _ in
+                               range(self.hparams["encoder"]["depth"])],
+                   batchnorm=[False for _ in range(self.hparams["encoder"]["depth"])],
+                   dropout=[self.hparams["encoder"]["dropout_ratio"] for _ in range(self.hparams["encoder"]["depth"])],
+                   )
+
+    def init_pooling(self):
         if self.hparams["encoder"]["aggregation"] == "attention":
             self.pooling = GlobalAttentionPooling(gate_nn=nn.Linear(self.hparams["encoder"]["hidden_size"], 1),
                                                   ntype="_N", feat="h_v",
@@ -176,20 +190,9 @@ class GCNModel(DMPNNModel):
         else:
             raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
 
-    def init_encoder(self):
-        return GCN(in_feats=self.hparams["atom_feature_size"],
-                   hidden_feats=[self.hparams["encoder"]["hidden_size"] for _ in
-                                 range(self.hparams["encoder"]["depth"])],
-                   gnn_norm=["both" for _ in range(self.hparams["encoder"]["depth"])],
-                   activation=[get_activation(self.hparams["encoder"]["activation"]) for _ in
-                               range(self.hparams["encoder"]["depth"])],
-                   batchnorm=[False for _ in range(self.hparams["encoder"]["depth"])],
-                   dropout=[self.hparams["encoder"]["dropout_ratio"] for _ in range(self.hparams["encoder"]["depth"])],
-                   )
-
     def _get_preds_loss_metrics(self, batch):
         # predict for batch
-        cgr_batch, global_features, y = batch
+        cgr_batch, global_features, fingerprints, y = batch
         embedding = self.encoder(cgr_batch, cgr_batch.ndata["x"])
         with cgr_batch.local_scope():
             cgr_batch.ndata["h_v"] = embedding
@@ -202,7 +205,6 @@ class GCNModel(DMPNNModel):
             y_hat = self.decoder(torch.cat((embedding_pooled, global_features), dim=1))
         else:
             y_hat = self.decoder(embedding_pooled)
-
 
         # calculate loss
         loss = self.calc_loss(y_hat, y)

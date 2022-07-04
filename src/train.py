@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from sklearn.linear_model import RidgeClassifier
 from xgboost import XGBClassifier
 
-from src.model.mpnn_classifier import DMPNNModel, GCNModel
+from src.model.classifier import DMPNNModel, GCNModel
 from src.util.definitions import LOG_DIR
 from src.util.logging import generate_run_id, concatenate_to_dict_keys
 from src.data.dataloader import collate_fn

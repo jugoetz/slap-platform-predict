@@ -1,11 +1,10 @@
 from src.data.dataloader import SLAPDataset
-from src.util.configuration import get_config
-from src.util.definitions import DATA_ROOT, CONFIG_ROOT
+from src.util.definitions import DATA_ROOT
 from src.cross_validation import cross_validate_predefined, cross_validate_sklearn
 from src.hyperopt import optimize_hyperparameters_bayes
 
 
-def main(config, hparam_optimization):
+def run_experiment(config, hparam_optimization):
 
     # load data
     data = SLAPDataset(name=config["data_name"],
@@ -44,10 +43,3 @@ def main(config, hparam_optimization):
         print(aggregate_metrics)
         print(fold_metrics)
     return
-
-
-if __name__ == "__main__":
-    CONFIG = get_config(CONFIG_ROOT / "config.yaml")
-    hparam_optimization = False  # invoke hparam sweep if True, else invoke single-point training
-    main(CONFIG, hparam_optimization)
-

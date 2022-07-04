@@ -1,0 +1,19 @@
+name: dgllife
+channels:
+  - defaults
+dependencies:
+  - python=3.7
+  - torchaudio
+  - torchvision
+  - pytorch
+  - dgl
+  - rdkit=2018.09.3
+  - pytorch-lightning
+  - bayesian-optimization
+  - botorch
+  - scipy
+  - plotly
+  - jinja2
+  - py-xgboost
+  - jupyter
+prefix: /Users/julian/.pyenv/versions/anaconda3-2020.07/envs/dgllife

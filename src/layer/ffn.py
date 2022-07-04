@@ -42,6 +42,7 @@ class FFN(nn.Module):
             out_size: Optional[int] = None,
             out_bias: bool = True,
             out_sigmoid: bool = False,
+            **kwargs,
     ):
         super().__init__()
         self.num_hidden_layers = depth

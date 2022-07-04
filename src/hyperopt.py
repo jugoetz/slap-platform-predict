@@ -57,7 +57,10 @@ def optimize_hyperparameters_bayes(hparams, data, split_files, hparam_config_pat
         if hparams_local["decoder"]["type"] == "LogisticRegression":
             hparams_local["decoder"]["LogisticRegression"]["C"] = parameterization["C"]
         elif hparams_local["decoder"]["type"] == "XGB":
-            ...
+            hparams_local["decoder"]["XGB"]["reg_lambda"] = parameterization["reg_lambda"]
+            hparams_local["decoder"]["XGB"]["reg_alpha"] = parameterization["reg_alpha"]
+            hparams_local["decoder"]["XGB"]["gamma"] = parameterization["gamma"]
+            hparams_local["decoder"]["XGB"]["learning_rate"] = parameterization["learning_rate"]
         else:
             raise ValueError("Unknown decoder type")
 

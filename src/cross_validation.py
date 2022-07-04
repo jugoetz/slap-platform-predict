@@ -192,7 +192,9 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
         data_splitted = {k: [data[i] for i in v] for k, v in idx.items()}
         fold_metrics, model = train_sklearn(data_splitted["train"], data_splitted["val"], hparams, run_id=fold_run_id,
                                             test={k: v for k, v in data_splitted.items() if k.startswith("test")},
-                                            save_model=save_models)
+                                            save_model=save_models,
+                                            group_run_id=cv_run_id,
+                                            )
 
         for k, v in fold_metrics.items():
             metrics[k][i] = v

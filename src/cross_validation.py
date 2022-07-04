@@ -203,7 +203,7 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
     aggregated_metrics = {}
     for k, v in metrics.items():
         if k.endswith(
-                ("precision", "recall", "f1", "accuracy", "roc_auc")):  # these are the metrics that can be aggregated
+                ("precision", "recall", "f1", "accuracy", "roc_auc", "loss")):  # these are the metrics that can be aggregated
             aggregated_metrics[k + "_mean"], aggregated_metrics[k + "_std"] = v.mean(), v.std()
 
     if return_fold_metrics:

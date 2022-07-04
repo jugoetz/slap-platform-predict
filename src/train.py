@@ -1,14 +1,13 @@
 import pickle
+from copy import deepcopy
 
-import pytorch_lightning as pl
+import numpy as np
 import wandb
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, roc_auc_score, roc_curve, \
-    precision_recall_curve, auc, classification_report, log_loss
+    precision_recall_curve, log_loss
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-from sklearn.linear_model import RidgeClassifier
+from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 
 from src.model.classifier import DMPNNModel, GCNModel
@@ -113,8 +112,8 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
     wandb.init(reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams)
 
     # initialize model
-    if hparams["decoder"]["type"] == "Ridge":
-        model = RidgeClassifier(**hparams["decoder"]["Ridge"])
+    if hparams["decoder"]["type"] == "LogisticRegression":
+        model = LogisticRegression(**hparams["decoder"]["LogisticRegression"])
     elif hparams["decoder"]["type"] == "XGB":
         model = XGBClassifier(**hparams["decoder"]["XGB"])
     else:
@@ -137,12 +136,12 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
     model.fit(X_train, train_labels)
 
     # evaluate on training set
-    train_pred = model.predict(X_train)
-    train_metrics = concatenate_to_dict_keys(calculate_metrics(train_labels, train_pred), prefix="train/")
+    train_pred = model.predict_proba(X_train)
+    train_metrics = concatenate_to_dict_keys(calculate_metrics(train_labels, train_pred, pred_proba=True), prefix="train/")
 
     # evaluate on validation set
-    val_pred = model.predict(X_val)
-    val_metrics = concatenate_to_dict_keys(calculate_metrics(val_labels, val_pred), prefix="val/")
+    val_pred = model.predict_proba(X_val)
+    val_metrics = concatenate_to_dict_keys(calculate_metrics(val_labels, val_pred, pred_proba=True), prefix="val/")
 
     # optionally, save model
     if save_model:
@@ -160,8 +159,8 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
                 X_test = test_fingerprints
             else:
                 raise ValueError("Invalid encoder type for sklearn model")
-            test_pred = model.predict(X_test)
-            test_metrics.update(concatenate_to_dict_keys(calculate_metrics(test_labels, test_pred), f"{k}/"))
+            test_pred = model.predict_proba(X_test)
+            test_metrics.update(concatenate_to_dict_keys(calculate_metrics(test_labels, test_pred, pred_proba=True), f"{k}/"))
 
     return_metrics = {}
     return_metrics.update(train_metrics)
@@ -190,12 +189,16 @@ def calculate_metrics(y_true, y_pred, pred_proba=False, detailed=False):
 
     """
 
+    if pred_proba is True:
+        y_prob = deepcopy(y_pred)
+        y_pred = np.argmax(y_pred, axis=1)
+
     metrics = {k: v for k, v in
                zip(["precision", "recall", "f1"], precision_recall_fscore_support(y_true, y_pred, average="binary", pos_label=1))}
     metrics["accuracy"] = accuracy_score(y_true, y_pred)
     metrics["AUROC"] = roc_auc_score(y_true, y_pred)
-    if pred_proba is True:
-        metrics["loss"] = log_loss(y_true, y_pred)
+    metrics["loss"] = log_loss(y_true, y_prob) if pred_proba else None
+
     if detailed is True:
         metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
         metrics["roc_curve"] = roc_curve(y_true, y_pred)

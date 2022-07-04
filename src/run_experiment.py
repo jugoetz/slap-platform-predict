@@ -4,7 +4,7 @@ from src.cross_validation import cross_validate_predefined, cross_validate_sklea
 from src.hyperopt import optimize_hyperparameters_bayes
 
 
-def run_experiment(config, hparam_optimization):
+def run_experiment(config, hparam_optimization, hparam_config_path=None, hparam_n_iter=20):
 
     # load data
     data = SLAPDataset(name=config["data_name"],
@@ -32,8 +32,14 @@ def run_experiment(config, hparam_optimization):
 
     if hparam_optimization:
         # run bayesian hparam optimization
-        best_params, values, experiment = optimize_hyperparameters_bayes(config, data, split_files)
+        best_params, values, experiment = optimize_hyperparameters_bayes(hparams=config,
+                                                                         data=data,
+                                                                         split_files=split_files,
+                                                                         hparam_config_path=hparam_config_path,
+                                                                         n_iter=hparam_n_iter
+                                                                         )
         print(best_params, values)
+
     else:
         # run cross-validation with configured hparams
         if config["decoder"]["type"] == "FFN":

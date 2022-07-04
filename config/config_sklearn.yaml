@@ -15,11 +15,14 @@ encoder:
   type: RDKit  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
 
 decoder:
-  type: Ridge  # str, options: {FFN, Ridge, XGB}.
+  type: LogisticRegression  # str, options: {FFN, LogisticRegression, XGB}.
 
-  # Ridge parameters
-  Ridge:
-    alpha: 0.1  # float, alpha for Ridge
+  # LogisticRegression parameters
+  LogisticRegression:
+    penalty: l2  # str, options: {l1, l2, elasticnet}. Type of regularization to use.
+    solver: liblinear  # str, options: {lbfgs, liblinear, sag, saga, newton-cg}. Solver to use.
+    C: 1.0  # float, inverse of the regularization strength Logistic Regression (i.e. smaller = stronger regularization)
+    # l1_ratio: None  # float, ratio of L1 regularization to L2 regularization. Only used if penalty is elasticnet.
 
   # XGBoost parameters
   XGB:

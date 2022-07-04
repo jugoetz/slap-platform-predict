@@ -5,7 +5,7 @@ accelerator: gpu  # usually cpu or gpu.
 reaction: True
 data_name: slap_dataset_reactions.csv
 rdkit_features: True  # bool, if True add rdkit features
-fingerprints: True  # bool, if True add fingerprints
+fingerprints: False  # bool, if True add fingerprints
 graph_type: bond_edges  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
                         # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}

@@ -187,7 +187,7 @@ class SLAPDataset(DGLDataset):
 
     @property
     def global_feature_size(self):
-        if self.global_featurizer:
+        if hasattr(self, "global_featurizer"):
             n_global_features = self.global_featurizer.feat_size
             if self.reaction:
                 return 2 * n_global_features  # for 2 reactants we have 2 x features

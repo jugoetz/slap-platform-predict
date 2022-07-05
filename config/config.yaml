@@ -12,13 +12,13 @@ featurizers: dgllife  # str, featurizers to use for atom and bond features. Opti
 
 # model
 encoder:
-  type: GCN  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
-  hidden_size: 850  # int
-  depth: 10  # int, >= 3, number of linear layers (?)
-  bias: False  # bool, whether to add bias to linear layers
-  dropout_ratio: 0.5  # float, probability of dropout
-  aggregation: attention  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
-  activation: ReLU  # str, any activation from torch.nn can be used
+  type: RDKit  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
+#  hidden_size: 850  # int
+#  depth: 10  # int, >= 3, number of linear layers (?)
+#  bias: False  # bool, whether to add bias to linear layers
+#  dropout_ratio: 0.5  # float, probability of dropout
+#  aggregation: attention  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
+#  activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
   type: FFN  # str, options: {FFN}.

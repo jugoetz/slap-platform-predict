@@ -1,16 +1,16 @@
-- bounds:
-  - 16
-  - 2048
-  name: encoder_hidden_size
-  type: range
-  value_type: int
-
-- bounds:
-  - 3
-  - 6
-  name: encoder_depth
-  type: range
-  value_type: int
+#- bounds:
+#  - 16
+#  - 2048
+#  name: encoder_hidden_size
+#  type: range
+#  value_type: int
+#
+#- bounds:
+#  - 3
+#  - 6
+#  name: encoder_depth
+#  type: range
+#  value_type: int
 
 - bounds:
   - 16
@@ -42,11 +42,11 @@
   value_type: float
   log_scale: True
 
-- values:
-  - "attention"
-  - "mean"
-  - "max"
-  - "sum"
-  name: aggregation
-  type: choice
-  value_type: str
+#- values:
+#  - "attention"
+#  - "mean"
+#  - "max"
+#  - "sum"
+#  name: aggregation
+#  type: choice
+#  value_type: str

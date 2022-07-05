@@ -21,15 +21,16 @@ def optimize_hyperparameters_bayes(hparams, data, split_files, hparam_config_pat
             tuple: Score and STD for the probed parameters
         """
         hparams_local = deepcopy(hparams)
-        hparams_local["encoder"]["hidden_size"] = parameterization["encoder_hidden_size"]
-        hparams_local["encoder"]["depth"] = parameterization["encoder_depth"]
-        hparams_local["decoder"]["hidden_size"] = parameterization["decoder_hidden_size"]
-        hparams_local["decoder"]["depth"] = parameterization["decoder_depth"]
-        hparams_local["encoder"]["dropout_ratio"] = parameterization["dropout"]
-        hparams_local["decoder"]["dropout_ratio"] = parameterization["dropout"]
-        hparams_local["optimizer"]["lr"] = parameterization["learning_rate"]
-        hparams_local["optimizer"]["lr_scheduler"]["lr_min"] = parameterization["learning_rate"] / 10  # we want min_lr to be 1/10th of max lr
-        hparams_local["encoder"]["aggregation"] = parameterization["aggregation"]
+
+        hparams_local["encoder"]["hidden_size"] = parameterization.get("encoder_hidden_size", hparams["encoder"]["hidden_size"])
+        hparams_local["encoder"]["depth"] = parameterization.get("encoder_depth", hparams["encoder"]["depth"])
+        hparams_local["decoder"]["hidden_size"] = parameterization.get("decoder_hidden_size", hparams["decoder"]["hidden_size"])
+        hparams_local["decoder"]["depth"] = parameterization.get("decoder_depth", hparams["decoder"]["depth"])
+        hparams_local["encoder"]["dropout_ratio"] = parameterization.get("dropout", hparams["encoder"]["dropout_ratio"])
+        hparams_local["decoder"]["dropout_ratio"] = parameterization.get("dropout", hparams["decoder"]["dropout_ratio"])
+        hparams_local["optimizer"]["lr"] = parameterization.get("learning_rate", hparams["optimizer"]["lr"])
+        hparams_local["optimizer"]["lr_scheduler"]["lr_min"] = hparams_local["optimizer"]["lr"] / 10  # we want min_lr to be 1/10th of max lr
+        hparams_local["encoder"]["aggregation"] = parameterization.get("aggregation", hparams["encoder"]["aggregation"])
         metrics = cross_validate_predefined(hparams=hparams_local,
                                             data=data,
                                             split_files=split_files,

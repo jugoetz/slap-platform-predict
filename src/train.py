@@ -32,7 +32,7 @@ def run_training(hparams, data, trainer, save_model=False):
     return metrics, trained_model
 
 
-def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metrics=False, save_model=False):
+def train(train, val, hparams, trainer, run_id=None, test=None, save_model=False):
     """
     Trains a model on a given data split with one set of hyperparameters. By default, returns the evaluation metrics
     on the validation set.
@@ -42,9 +42,7 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
         val: (torch.utils.data.DataLoader): Validation data
         hparams (dict): Model hyperparameters
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
-        test: (torch.utils.data.DataLoader, optional): Test data. Only used if return_test_metrics is True.
-        return_test_metrics (bool): Whether to return metrics on test set. If True, test has to be given.
-            Defaults to False.
+        test: (dict, optional): Test data. Dictionary of dataloaders. If given, function will return test score(s).
         save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
 
     Returns:
@@ -55,10 +53,7 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
     if not run_id:
         run_id = generate_run_id()
 
-    # check if a test set has been passed
-    if return_test_metrics:
-        if test is None:
-            raise ValueError("When return_test_metrics is True, as test dataloader has to be passed.")
+    wandb.init(reinit=True, project="slap-gnn", name=run_id, group="test", config=hparams)
 
     # initialize model
     if hparams["encoder"]["type"] == "D-MPNN":
@@ -70,20 +65,23 @@ def train(train, val, hparams, trainer, run_id=None, test=None, return_test_metr
 
     # run training
     trainer.fit(model, train_dataloaders=train, val_dataloaders=val)
-
+    metrics = {k: v for k, v in trainer.logged_metrics.items()}
     # optionally, save model weights
     if save_model:
         trainer.save_checkpoint(filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True)
 
-    # optionally, run test set
-    if return_test_metrics:
-        trainer.test(model, test)
 
-    return_metrics = {k: v for k, v in trainer.logged_metrics.items() if k.startswith('val')}
-    if return_test_metrics:
-        test_metrics = {k: v for k, v in trainer.logged_metrics.items() if k.startswith('test')}
-        return_metrics.update(test_metrics)
-    return return_metrics, model
+    # optionally, run test set
+    if test:
+        for test_name, test_dl in test.items():
+            trainer.test(model, test_dl, ckpt_path="best")
+            for k, v in trainer.logged_metrics.items():
+                if k.startswith('test'):
+                    metrics[k.replace("test", test_name)] = v
+
+    wandb.log(metrics)
+    wandb.finish()
+    return metrics, model
 
 
 def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None, save_model=False):

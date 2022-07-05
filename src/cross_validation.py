@@ -109,7 +109,7 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
         fold_run_id = f"{cv_run_id}_fold{i}"
         trainer_fold = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
                                   default_root_dir=PROJECT_DIR,
-                                  logger=WandbLogger(name=fold_run_id, group=cv_run_id, project="slap-gnn"),
+                                  # logger=WandbLogger(name=fold_run_id, group=cv_run_id, project="slap-gnn"),
                                   accelerator=hparams["accelerator"])
 
         # load indices from file
@@ -123,18 +123,12 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
                     k.startswith("test")}
 
         # train and validate model
-        fold_metrics_val, model = train(train_dl, val_dl, hparams, trainer_fold, run_id=fold_run_id,
+        fold_metrics_val, model = train(train_dl, val_dl, hparams, trainer_fold, test=test_dls, run_id=fold_run_id,
                                         save_model=save_models)
         for k, v in fold_metrics_val.items():
             metrics[k].append(v)
 
-        # test model (if any test sets were given)
-        for test_name, test_dl in test_dls.items():
-            trainer_fold.test(model, test_dl, ckpt_path="best")
-            for k, v in trainer_fold.logged_metrics.items():
-                if k.startswith('test'):
-                    metrics[k.replace("test", test_name)].append(v)
-        wandb.finish()
+        # wandb.finish()
 
     # aggregate fold metrics
     metrics = {k: torch.stack(v) for k, v in metrics.items()}

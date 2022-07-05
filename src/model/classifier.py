@@ -21,7 +21,9 @@ class DMPNNModel(pl.LightningModule):
         self.metrics = torch.nn.ModuleDict({"accuracy": tm.Accuracy(),
                                             "AUROC": tm.AUROC(),
                                             "precision": tm.Precision(),
-                                            "recall": tm.Recall()})
+                                            "recall": tm.Recall(),
+                                            "f1": tm.F1Score(),
+                                            })
 
     def init_encoder(self):
         return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],

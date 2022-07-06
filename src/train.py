@@ -32,7 +32,7 @@ def run_training(hparams, data, trainer, save_model=False):
     return metrics, trained_model
 
 
-def train(train, val, hparams, trainer, run_id=None, test=None, save_model=False):
+def train(train, val, hparams, trainer, run_id=None, group_run_id=None, test=None, save_model=False):
     """
     Trains a model on a given data split with one set of hyperparameters. By default, returns the evaluation metrics
     on the validation set.
@@ -42,6 +42,7 @@ def train(train, val, hparams, trainer, run_id=None, test=None, save_model=False
         val: (torch.utils.data.DataLoader): Validation data
         hparams (dict): Model hyperparameters
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
+        group_run_id (optional, str): Id to identify the run group. Default None.
         test: (dict, optional): Test data. Dictionary of dataloaders. If given, function will return test score(s).
         save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
 
@@ -53,7 +54,7 @@ def train(train, val, hparams, trainer, run_id=None, test=None, save_model=False
     if not run_id:
         run_id = generate_run_id()
 
-    wandb.init(reinit=True, project="slap-gnn", name=run_id, group="test", config=hparams)
+    wandb.init(reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams)
 
     # initialize model
     if hparams["encoder"]["type"] == "D-MPNN":
@@ -69,7 +70,6 @@ def train(train, val, hparams, trainer, run_id=None, test=None, save_model=False
     # optionally, save model weights
     if save_model:
         trainer.save_checkpoint(filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True)
-
 
     # optionally, run test set
     if test:

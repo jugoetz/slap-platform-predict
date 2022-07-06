@@ -124,7 +124,7 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
 
         # train and validate model
         fold_metrics_val, model = train(train_dl, val_dl, hparams, trainer_fold, test=test_dls, run_id=fold_run_id,
-                                        save_model=save_models)
+                                        group_run_id=cv_run_id, save_model=save_models)
         for k, v in fold_metrics_val.items():
             metrics[k].append(v)
 

@@ -4,15 +4,14 @@ accelerator: cpu  # usually cpu or gpu.
 # data
 reaction: True
 data_name: slap_dataset_reactions.csv
-rdkit_features: False  # bool, if True add rdkit features
-fingerprints: True  # bool, if True add fingerprints
+global_features: FP  # str, options: {"RDKit", "FP", None}. Global features to include with the graphs.
 graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
                         # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 # model
 encoder:
-  type: FP  # str, options: {D-MPNN, GCN, RDKit, FP}. Note that RDKit and FP will ignore all other encoder configs.
+  type: global_features  # str, options: {D-MPNN, GCN, global_features}. Note that global_features will ignore all other encoder configs.
 
 decoder:
   type: LogisticRegression # str, options: {FFN, LogisticRegression, XGB}.

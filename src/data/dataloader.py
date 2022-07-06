@@ -11,10 +11,10 @@ from src.data.featurizers import ChempropAtomFeaturizer, ChempropBondFeaturizer,
     RDKitMorganFingerprinter
 
 
-def collate_fn(batch: List[Tuple[dgl.DGLGraph, list, list, torch.tensor]]) -> Tuple[dgl.DGLGraph, Optional[torch.tensor], Optional[torch.tensor], torch.tensor]:
+def collate_fn(batch: List[Tuple[dgl.DGLGraph, list, torch.tensor]]) -> Tuple[dgl.DGLGraph, Optional[torch.tensor], torch.tensor]:
     """Collate a list of samples into a batch, i.e. into a single tuple representing the entire batch"""
 
-    graphs, global_features, fingerprints, labels = map(list, zip(*batch))
+    graphs, global_features, labels = map(list, zip(*batch))
 
     batched_graphs = dgl.batch(graphs)
     if global_features[0] is None:
@@ -22,14 +22,9 @@ def collate_fn(batch: List[Tuple[dgl.DGLGraph, list, list, torch.tensor]]) -> Tu
     else:
         batched_global_features = torch.tensor(global_features, dtype=torch.float32)
 
-    if fingerprints[0] is None:
-        batched_fingerprints = None
-    else:
-        batched_fingerprints = torch.tensor(fingerprints, dtype=torch.int32)
-
     batched_labels = torch.tensor(labels)
 
-    return batched_graphs, batched_global_features, batched_fingerprints, batched_labels
+    return batched_graphs, batched_global_features, batched_labels
 
 
 class SLAPDataset(DGLDataset):
@@ -50,8 +45,7 @@ class SLAPDataset(DGLDataset):
                  raw_dir=None,
                  url=None,
                  reaction=False,
-                 rdkit_features=False,
-                 ecfp6=False,
+                 global_features=None,
                  graph_type="bond_edges",
                  featurizers="dgllife",
                  smiles_columns=("SMILES", ),
@@ -65,8 +59,7 @@ class SLAPDataset(DGLDataset):
             raw_dir (str or path-like): Directory containing data. Default None
             url (str): Url to fetch data from. Default None
             reaction (bool): Whether data is a reaction. If True, data will be loaded as CGR. Default False.
-            rdkit_features (bool): Whether to add rdkit features. Default False.
-            ecfp6 (bool): Whether to add ECFP6 fingerprints. Default False.
+            global_features (str, optional): Which global features to add. Options: {"RDKit", "FP", None}. Default None.
             graph_type (str): Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
                     atoms and edges are bonds). These graphs are homogeneous. If "bond_nodes", bond-node graphs will be
                     formed (both atoms and bonds are nodes, edges represent their connectivity).
@@ -84,8 +77,7 @@ class SLAPDataset(DGLDataset):
         self.label_column = label_column
         self.smiles_columns = smiles_columns
         self.graph_type = graph_type  # whether to form BE- or BN-graph
-        self.global_features = None  # container for global features e.g. rdkit
-        self.fingerprint = None  # container for fingerprints
+        self.global_features = None  # container for global features e.g. rdkit or fingerprints
 
         # featurizer to obtain atom and bond features
         if featurizers == "dgllife":
@@ -98,10 +90,12 @@ class SLAPDataset(DGLDataset):
             raise ValueError("Unexpected value for 'featurizers'")
 
         # global featurizer
-        if rdkit_features:
+        if global_features == "RDKit":
             self.global_featurizer = RDKit2DGlobalFeaturizer(normalize=True)
-        if ecfp6:
-            self.fingerprinter = RDKitMorganFingerprinter(radius=6, n_bits=1024)
+        elif global_features == "FP":
+            self.global_featurizer = RDKitMorganFingerprinter(radius=6, n_bits=1024)
+        else:
+            self.global_featurizer = None
 
         super(SLAPDataset, self).__init__(name=name,
                                           url=url,
@@ -128,7 +122,7 @@ class SLAPDataset(DGLDataset):
         else:
             self.graphs = [build_mol_graph(s, self.atom_featurizer, self.bond_featurizer, graph_type=self.graph_type) for s in smiles]
 
-        if hasattr(self, "global_featurizer"):
+        if self.global_featurizer is not None:
             if self.reaction:
                 # if it is a reaction, we featurize for both reactants, then concatenate
                 self.global_features = [[*self.global_featurizer.process(s.split(">>")[0].split(".")[0]), *self.global_featurizer.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
@@ -137,16 +131,6 @@ class SLAPDataset(DGLDataset):
                 self.global_features = [self.global_featurizer.process(s) for s in smiles]
         else:
             self.global_features = [None for s in smiles]
-
-        if hasattr(self, "fingerprinter"):
-            if self.reaction:
-                # if it is a reaction, we featurize for both reactants, then concatenate
-                self.fingerprint = [[*self.fingerprinter.process(s.split(">>")[0].split(".")[0]), *self.fingerprinter.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
-            else:
-                # if instead we get a single molecule, we just featurize for that
-                self.fingerprint = [self.fingerprinter.process(s) for s in smiles]
-        else:
-            self.fingerprint = [None for s in smiles]
 
         self.labels = csv_data[self.label_column].values.tolist()
 
@@ -159,7 +143,7 @@ class SLAPDataset(DGLDataset):
         Returns:
             (dgl.DGLGraph, Tensor)
         """
-        return self.graphs[idx], self.global_features[idx], self.fingerprint[idx], self.labels[idx]
+        return self.graphs[idx], self.global_features[idx], self.labels[idx]
 
     def __len__(self):
         """Number of graphs in the dataset"""

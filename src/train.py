@@ -118,15 +118,12 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
         raise ValueError("Invalid model type")
 
     # get training and validation data
-    train_graphs, train_global_features, train_fingerprints, train_labels = map(list, zip(*train))
-    val_graphs, val_global_features, val_fingerprints, val_labels = map(list, zip(*val))
+    train_graphs, train_global_features, train_labels = map(list, zip(*train))
+    val_graphs, val_global_features, val_labels = map(list, zip(*val))
 
-    if hparams["encoder"]["type"] == "RDKit":
+    if hparams["encoder"]["type"] == "global_features":
         X_train = train_global_features
         X_val = val_global_features
-    elif hparams["encoder"]["type"] == "FP":
-        X_train = train_fingerprints
-        X_val = val_fingerprints
     else:
         raise ValueError("Invalid encoder type for sklearn model")
 
@@ -150,11 +147,9 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
     if test:
         test_metrics = {}
         for k, v in test.items():
-            test_graphs, test_global_features, test_fingerprints, test_labels = map(list, zip(*v))
-            if hparams["encoder"]["type"] == "RDKit":
+            test_graphs, test_global_features, test_labels = map(list, zip(*v))
+            if hparams["encoder"]["type"] == "global_features":
                 X_test = test_global_features
-            elif hparams["encoder"]["type"] == "FP":
-                X_test = test_fingerprints
             else:
                 raise ValueError("Invalid encoder type for sklearn model")
             test_pred = model.predict_proba(X_test)

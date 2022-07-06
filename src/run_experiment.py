@@ -13,7 +13,7 @@ def run_experiment(config, hparam_optimization, hparam_config_path=None, hparam_
                        smiles_columns=("SMILES", ),
                        label_column="targets",
                        graph_type=config["graph_type"],
-                       rdkit_features=config["rdkit_features"],
+                       global_features=config["global_features"],
                        featurizers=config["featurizers"],
                        )
 

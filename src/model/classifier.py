@@ -43,7 +43,7 @@ class DMPNNModel(pl.LightningModule):
     def _get_preds_loss_metrics(self, batch):
 
         # predict for batch
-        cgr_batch, global_features, fingerprints, y = batch
+        cgr_batch, global_features, y = batch
         embedding = self.encoder(cgr_batch)
         if global_features is not None:
             y_hat = self.decoder(torch.cat((embedding, global_features), dim=1))
@@ -194,7 +194,7 @@ class GCNModel(DMPNNModel):
 
     def _get_preds_loss_metrics(self, batch):
         # predict for batch
-        cgr_batch, global_features, fingerprints, y = batch
+        cgr_batch, global_features, y = batch
         embedding = self.encoder(cgr_batch, cgr_batch.ndata["x"])
         with cgr_batch.local_scope():
             cgr_batch.ndata["h_v"] = embedding
@@ -238,12 +238,12 @@ class FFNModel(DMPNNModel):
 
     def _get_preds_loss_metrics(self, batch):
         # predict for batch
-        cgr_batch, global_features, fingerprints, y = batch
+        cgr_batch, global_features, y = batch
 
-        if self.hparams["encoder"]["type"] == "RDKit":
+        if global_features is not None:
             y_hat = self.decoder(global_features)
-        elif self.hparams["encoder"]["type"] == "fingerprint":
-            y_hat = self.decoder(fingerprints)
+        else:
+            raise ValueError("FFNModel expects a global feature vector")
 
         # calculate loss
         loss = self.calc_loss(y_hat, y)

@@ -131,7 +131,9 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
         # wandb.finish()
 
     # aggregate fold metrics
-    metrics = {k: torch.stack(v) for k, v in metrics.items()}
+    # stack tensors, but remove underscore metrics (timestamp etc.)
+    metrics = {k: torch.stack(v) for k, v in metrics.items() if not k.startswith("_")}
+    # statistics on all folds
     metrics_return = {k + "_mean": torch.mean(v) for k, v in metrics.items()}
     metrics_std = {k + "_std": torch.std(v) for k, v in metrics.items()}
     metrics_return.update(metrics_std)

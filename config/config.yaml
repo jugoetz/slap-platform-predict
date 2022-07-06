@@ -4,7 +4,7 @@ accelerator: gpu  # usually cpu or gpu.
 # data
 reaction: True
 data_name: slap_dataset_reactions.csv
-global_features: FP  # str, options: {"RDKit", "FP", None}. Global features to include with the graphs.
+global_features: RDKit  # str, options: {"RDKit", "FP", None}. Global features to include with the graphs.
 graph_type: bond_edges  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
                         # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}

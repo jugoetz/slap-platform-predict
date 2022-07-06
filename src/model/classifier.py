@@ -212,3 +212,40 @@ class GCNModel(DMPNNModel):
         loss = self.calc_loss(y_hat, y)
 
         return y_hat, loss, {k: v(y_hat, y) for k, v in self.metrics.items()}
+
+
+class FFNModel(DMPNNModel):
+    """
+    FFN-only model.
+
+    This expects a vectorized input, e.g., a fingerprint or a global feature vector.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def init_encoder(self):
+        return None
+
+    def init_decoder(self):
+        return FFN(in_size=self.hparams["global_feature_size"],
+                   out_size=1,
+                   **self.hparams.decoder,
+                   )
+
+    def forward(self, x):
+        self.decoder(x)
+
+    def _get_preds_loss_metrics(self, batch):
+        # predict for batch
+        cgr_batch, global_features, fingerprints, y = batch
+
+        if self.hparams["encoder"]["type"] == "RDKit":
+            y_hat = self.decoder(global_features)
+        elif self.hparams["encoder"]["type"] == "fingerprint":
+            y_hat = self.decoder(fingerprints)
+
+        # calculate loss
+        loss = self.calc_loss(y_hat, y)
+
+        return y_hat, loss, {k: v(y_hat, y) for k, v in self.metrics.items()}

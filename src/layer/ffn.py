@@ -74,8 +74,9 @@ class FFN(nn.Module):
         self.ffn = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.ffn(x).reshape(-1)
         # the output is shape (n_samples_in_batch, 1), which we reshape to (n_samples_in_batch,) for convenience
+        return self.ffn(x).reshape(-1)
+
 
     def __repr__(self):
         s = f"FFN, num hidden layers: {self.num_hidden_layers}"

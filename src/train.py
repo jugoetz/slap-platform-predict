@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 
-from src.model.classifier import DMPNNModel, GCNModel
+from src.model.classifier import DMPNNModel, GCNModel, FFNModel
 from src.util.definitions import LOG_DIR
 from src.util.logging import generate_run_id, concatenate_to_dict_keys
 from src.data.dataloader import collate_fn
@@ -61,7 +61,7 @@ def train(train, val, hparams, trainer, run_id=None, test=None, save_model=False
     elif hparams["encoder"]["type"] == "GCN":
         model = GCNModel(**hparams)
     else:
-        raise ValueError("Invalid model type")
+        model = FFNModel(**hparams)
 
     # run training
     trainer.fit(model, train_dataloaders=train, val_dataloaders=val)

@@ -88,9 +88,5 @@ def optimize_hyperparameters_bayes(hparams, data, split_files, hparam_config_pat
                                                           total_trials=n_iter,
                                                           minimize=True,
                                                           )
-
-    # print(experiment.trials.values())
-    # print([trial.objective_mean for trial in experiment.trials.values()])
-    # TODO logging. All the info is contained in experiment
     return best_parameters, values, experiment
 

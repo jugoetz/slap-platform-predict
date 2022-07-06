@@ -38,7 +38,7 @@ def run_experiment(config, hparam_optimization, hparam_config_path=None, hparam_
                                                                          hparam_config_path=hparam_config_path,
                                                                          n_iter=hparam_n_iter
                                                                          )
-        print(best_params, values)
+        # print(best_params, values)
 
     else:
         # run cross-validation with configured hparams

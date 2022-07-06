@@ -14,7 +14,7 @@ encoder:
   type: global_features  # str, options: {D-MPNN, GCN, global_features}. Note that global_features will ignore all other encoder configs.
 
 decoder:
-  type: LogisticRegression # str, options: {FFN, LogisticRegression, XGB}.
+  type: XGB # str, options: {FFN, LogisticRegression, XGB}.
 
   # LogisticRegression parameters
   LogisticRegression:

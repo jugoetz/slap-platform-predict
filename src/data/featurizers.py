@@ -134,6 +134,10 @@ class RDKitMorganFingerprinter:
         ConvertToNumpyArray(fp, arr)
         return arr
 
+    @property
+    def feat_size(self) -> int:
+        return self.n_bits
+
 
 class RDKit2DGlobalFeaturizer:
     """

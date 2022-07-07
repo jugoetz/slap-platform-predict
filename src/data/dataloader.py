@@ -8,7 +8,7 @@ from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeat
 
 from src.data.grapher import build_cgr, build_mol_graph
 from src.data.featurizers import ChempropAtomFeaturizer, ChempropBondFeaturizer, RDKit2DGlobalFeaturizer, \
-    RDKitMorganFingerprinter
+    RDKitMorganFingerprinter, OneHotEncoder
 
 
 def collate_fn(batch: List[Tuple[dgl.DGLGraph, list, torch.tensor]]) -> Tuple[dgl.DGLGraph, Optional[torch.tensor], torch.tensor]:
@@ -94,6 +94,8 @@ class SLAPDataset(DGLDataset):
             self.global_featurizer = RDKit2DGlobalFeaturizer(normalize=True)
         elif global_features == "FP":
             self.global_featurizer = RDKitMorganFingerprinter(radius=6, n_bits=1024)
+        elif global_features == "OHE":
+            self.global_featurizer = OneHotEncoder()
         else:
             self.global_featurizer = None
 
@@ -125,9 +127,20 @@ class SLAPDataset(DGLDataset):
         if self.global_featurizer is not None:
             if self.reaction:
                 # if it is a reaction, we featurize for both reactants, then concatenate
-                self.global_features = [[*self.global_featurizer.process(s.split(">>")[0].split(".")[0]), *self.global_featurizer.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
+                if isinstance(self.global_featurizer, OneHotEncoder):
+                    # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
+                    smiles_reactant1 = [s.split(".")[0] for s in smiles]
+                    smiles_reactant2 = [s.split(">>")[0].split(".")[1] for s in smiles]
+                    self.global_featurizer.add_dimension(smiles_reactant1)
+                    self.global_featurizer.add_dimension(smiles_reactant2)
+                    self.global_features = [self.global_featurizer.process(*s.split(">>")[0].split(".")) for s in smiles]
+                else:
+                    self.global_features = [[*self.global_featurizer.process(s.split(">>")[0].split(".")[0]), *self.global_featurizer.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
             else:
                 # if instead we get a single molecule, we just featurize for that
+                if isinstance(self.global_featurizer, OneHotEncoder):
+                    # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
+                    self.global_featurizer.add_dimension(smiles)
                 self.global_features = [self.global_featurizer.process(s) for s in smiles]
         else:
             self.global_features = [None for s in smiles]

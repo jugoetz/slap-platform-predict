@@ -3,6 +3,19 @@ from rdkit.Chem import Draw
 from rdkit.Chem.rdchem import Mol
 
 
+def canonicalize_smiles(smiles: str) -> str:
+    """
+    Canonicalize a SMILES string.
+
+    Removes any atom-mapping numbers
+    """
+    mol = Chem.MolFromSmiles(smiles)
+    for a in mol.GetAtoms():
+        if a.HasProp("molAtomMapNumber"):
+            a.ClearProp("molAtomMapNumber")
+    return Chem.MolToSmiles(mol)
+
+
 def move_atom_index_to_mapno(mol: Mol):
     """
     Write the atom indexes to property "molAtomMapNo", so they can be displayed in drawing.

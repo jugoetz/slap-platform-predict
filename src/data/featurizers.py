@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 import torch
+from descriptastorus.descriptors.DescriptorGenerator import MakeGenerator
 from dgllife.utils.featurizers import (
     BaseAtomFeaturizer,
     BaseBondFeaturizer,
@@ -21,8 +22,9 @@ from dgllife.utils.featurizers import (
 )
 from rdkit.Chem import Mol, MolFromSmiles
 from rdkit.Chem.rdMolDescriptors import GetMorganFingerprintAsBitVect
-from descriptastorus.descriptors.DescriptorGenerator import MakeGenerator
 from rdkit.DataStructs import ConvertToNumpyArray
+
+from src.util.rdkit_util import canonicalize_smiles
 
 
 class ChempropAtomFeaturizer(BaseAtomFeaturizer):
@@ -123,7 +125,7 @@ class RDKitMorganFingerprinter:
     Molecule featurization with Morgan fingerprint
     """
 
-    def __init__(self, radius=3, n_bits=1024):
+    def __init__(self, radius=3, n_bits=1024, **kwargs):
         self.radius = radius
         self.n_bits = n_bits
 
@@ -139,12 +141,77 @@ class RDKitMorganFingerprinter:
         return self.n_bits
 
 
+class OneHotEncoder:
+    """
+    Molecule featurization with one-hot vector
+    """
+    classes = {}
+
+    def add_dimension(self, smiles: list):
+        """
+        Initialize a new dimension in the encoder.
+
+        Expects a list of smiles strings that are all options for the new dimension.
+        SMILES will be canonicalized before being added to the encoder.
+
+        Args:
+            smiles (list): List of smiles strings.
+        """
+        new_dimension = len(self.classes.keys())
+        class_values = {}
+        for smi in smiles:
+            # canonicalize
+            canonical_smiles = canonicalize_smiles(smi)
+            # check if the smiles is already in the dictionary
+            if canonical_smiles not in class_values.keys():
+                # if not, add
+                class_values[canonical_smiles] = len(class_values.keys())
+            self.classes[new_dimension] = class_values
+        return
+
+    def process(self, *smiles):
+        """
+        Process a list of smiles and return a one-hot vector.
+        Expects a number of input smiles equal to the number of dimensions in the encoder (.n_dimensions)
+        """
+        # check if the encoder has been initialized
+        if self.n_dimensions == 0:
+            raise RuntimeError("OneHotEncoder must be initialized by calling add_dimension() at least once before processing.")
+        # check if the number of smiles is equal to the number of dimensions
+        if len(smiles) != self.n_dimensions:
+            raise ValueError("Expected {} smiles, got {}".format(self.n_dimensions, len(smiles)))
+        feat_sizes = self.feat_size_by_dimension
+        one_hot_vector = np.zeros(sum(feat_sizes))
+
+        for dimension, smi in enumerate(smiles):
+            # canonicalize the smiles
+            canonical_smiles = canonicalize_smiles(smi)
+            # get the one-hot index
+            one_hot_index = self.classes[dimension][canonical_smiles]
+            # get the one-hot vector
+            one_hot_vector[one_hot_index + sum(feat_sizes[:dimension])] = 1
+
+        return one_hot_vector
+
+    @property
+    def n_dimensions(self) -> int:
+        return len(self.classes.keys())
+
+    @property
+    def feat_size(self) -> int:
+        return sum(self.feat_size_by_dimension)
+
+    @property
+    def feat_size_by_dimension(self) -> list:
+        return [len(v.keys()) for v in self.classes.values()]
+
+
 class RDKit2DGlobalFeaturizer:
     """
     Molecule featurization with RDKit 2D features. Uses descriptastorus (https://github.com/bp-kelley/descriptastorus).
     """
 
-    def __init__(self, normalize: bool = True):
+    def __init__(self, normalize: bool = True, **kwargs):
         """
         Args:
             normalize (bool): If True, normalize feature values. The normalization uses a CDF fitted on a NIBR compound

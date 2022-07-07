@@ -133,9 +133,8 @@ class SLAPDataset(DGLDataset):
                     smiles_reactant2 = [s.split(">>")[0].split(".")[1] for s in smiles]
                     self.global_featurizer.add_dimension(smiles_reactant1)
                     self.global_featurizer.add_dimension(smiles_reactant2)
-                    self.global_features = [self.global_featurizer.process(*s.split(">>")[0].split(".")) for s in smiles]
-                else:
-                    self.global_features = [[*self.global_featurizer.process(s.split(">>")[0].split(".")[0]), *self.global_featurizer.process(s.split(">>")[0].split(".")[1])] for s in smiles]  # [*l1, *l2] joins lists l1 and l2
+                self.global_features = [self.global_featurizer.process(*s.split(">>")[0].split(".")) for s in smiles]
+
             else:
                 # if instead we get a single molecule, we just featurize for that
                 if isinstance(self.global_featurizer, OneHotEncoder):
@@ -186,8 +185,8 @@ class SLAPDataset(DGLDataset):
     def global_feature_size(self):
         if hasattr(self, "global_featurizer"):
             n_global_features = self.global_featurizer.feat_size
-            if self.reaction:
-                return 2 * n_global_features  # for 2 reactants we have 2 x features
+            if self.reaction and not isinstance(self.global_featurizer, OneHotEncoder):
+                return 2 * n_global_features  # for 2 reactants we have 2 x features (except for the OHE which always encorporates all inputs in feat size)
             else:
                 return n_global_features
         else:

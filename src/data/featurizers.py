@@ -129,12 +129,19 @@ class RDKitMorganFingerprinter:
         self.radius = radius
         self.n_bits = n_bits
 
-    def process(self, smiles):
-        mol = MolFromSmiles(smiles)
-        fp = GetMorganFingerprintAsBitVect(mol, radius=self.radius, nBits=self.n_bits)
-        arr = np.zeros(self.n_bits)
-        ConvertToNumpyArray(fp, arr)
-        return arr
+    def process(self, *smiles):
+        """
+        Process one or more SMILES and return a one-hot vector.
+        Outputs will be concatenated into one array of length feat_size x number_of_smiles.
+        """
+        arrays = []
+        for smi in smiles:
+            mol = MolFromSmiles(smi)
+            fp = GetMorganFingerprintAsBitVect(mol, radius=self.radius, nBits=self.n_bits)
+            arr = np.zeros(self.n_bits)
+            ConvertToNumpyArray(fp, arr)
+            arrays.append(arr)
+        return np.concatenate(arrays, axis=0)
 
     @property
     def feat_size(self) -> int:
@@ -151,11 +158,11 @@ class OneHotEncoder:
         """
         Initialize a new dimension in the encoder.
 
-        Expects a list of smiles strings that are all options for the new dimension.
+        Expects a list of SMILES strings that are all options for the new dimension.
         SMILES will be canonicalized before being added to the encoder.
 
         Args:
-            smiles (list): List of smiles strings.
+            smiles (list): List of SMILES strings.
         """
         new_dimension = len(self.classes.keys())
         class_values = {}
@@ -171,7 +178,7 @@ class OneHotEncoder:
 
     def process(self, *smiles):
         """
-        Process a list of smiles and return a one-hot vector.
+        Process one or more smiles and return a one-hot vector.
         Expects a number of input smiles equal to the number of dimensions in the encoder (.n_dimensions)
         """
         # check if the encoder has been initialized
@@ -221,17 +228,22 @@ class RDKit2DGlobalFeaturizer:
             self.features_generator = MakeGenerator(("rdkit2dnormalized",))
         else:
             self.features_generator = MakeGenerator(("rdkit2d",))
+        # we only need to evaluate feat_size once as the generator is not intended for change during runtime
+        self._feat_size = len(self.features_generator.process("C")) - 1  # -1 for the initial 'True' that we do not return
 
-    def process(self, smiles: str) -> list:
-        features = self.features_generator.process(smiles)
-        if features is None:  # fail
-            raise ValueError(f"ERROR: could not generate rdkit features for SMILES '{smiles}'")
-        else:
-            return features[1:]  # do not return the initial 'True'.
+    def process(self, *smiles):
+        feat = np.zeros((len(smiles) * self.feat_size), dtype="float32")
+        for i, smi in enumerate(smiles):
+            features = self.features_generator.process(smi)
+            if features is None:  # fail
+                raise ValueError(f"ERROR: could not generate rdkit features for SMILES '{smi}'")
+            else:
+                feat[i * self.feat_size:(i + 1) * self.feat_size] = features[1:]  # do not return the initial 'True'.
+        return feat
 
     @property
     def feat_size(self) -> int:
-        return len(self.features_generator.process("C")) - 1  # -1 for the initial 'True' that we do not return
+        return self._feat_size
 
 
 def dummy_atom_featurizer(m: Mol):

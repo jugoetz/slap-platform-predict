@@ -22,7 +22,10 @@ def collate_fn(batch: List[Tuple[dgl.DGLGraph, list, torch.tensor]]) -> Tuple[dg
     else:
         batched_global_features = torch.tensor(global_features, dtype=torch.float32)
 
-    batched_labels = torch.tensor(labels)
+    if labels[0] is None:
+        batched_labels = None
+    else:
+        batched_labels = torch.tensor(labels)
 
     return batched_graphs, batched_global_features, batched_labels
 
@@ -144,7 +147,11 @@ class SLAPDataset(DGLDataset):
         else:
             self.global_features = [None for s in smiles]
 
-        self.labels = csv_data[self.label_column].values.tolist()
+        if self.label_column:
+            self.labels = csv_data[self.label_column].values.tolist()
+        else:
+            # allow having no labels, e.g. for prediction
+            self.labels = [None for s in smiles]
 
     def __getitem__(self, idx):
         """ Get graph and label by index
@@ -183,7 +190,7 @@ class SLAPDataset(DGLDataset):
 
     @property
     def global_feature_size(self):
-        if hasattr(self, "global_featurizer"):
+        if hasattr(self, "global_featurizer") and getattr(self, "global_featurizer") is not None:
             n_global_features = self.global_featurizer.feat_size
             if self.reaction and not isinstance(self.global_featurizer, OneHotEncoder):
                 return 2 * n_global_features  # for 2 reactants we have 2 x features (except for the OHE which always encorporates all inputs in feat size)

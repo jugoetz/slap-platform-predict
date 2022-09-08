@@ -12,7 +12,7 @@ from src.layer.pooling import GlobalAttentionPooling, AvgPooling, SumPooling, Ma
 from src.layer.util import get_activation
 
 
-class DMPNNModel(pl.LightningModule):
+class ParentModel(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
         self.save_hyperparameters()
@@ -26,29 +26,20 @@ class DMPNNModel(pl.LightningModule):
                                             })
 
     def init_encoder(self):
-        return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],
-                           bond_feature_size=self.hparams["bond_feature_size"],
-                           **self.hparams.encoder
-                           )
+        raise NotImplementedError("Child class must implement this method")
 
     def init_decoder(self):
-        return FFN(in_size=self.hparams.encoder["hidden_size"] + self.hparams["global_feature_size"],
-                   out_size=1,
-                   **self.hparams.decoder,
-                   )
+        raise NotImplementedError("Child class must implement this method")
 
     def forward(self, x):
-        return self.decoder(self.encoder(x))
+        raise NotImplementedError("Child class must implement this method")
+
+    def _get_preds(self, batch):
+        raise NotImplementedError("Child class must implement this method")
 
     def _get_preds_loss_metrics(self, batch):
-
-        # predict for batch
-        cgr_batch, global_features, y = batch
-        embedding = self.encoder(cgr_batch)
-        if global_features is not None:
-            y_hat = self.decoder(torch.cat((embedding, global_features), dim=1))
-        else:
-            y_hat = self.decoder(embedding)
+        y = batch[-1]
+        y_hat = self._get_preds(batch)
 
         # calculate loss
         loss = self.calc_loss(y_hat, y)
@@ -75,6 +66,9 @@ class DMPNNModel(pl.LightningModule):
         for k, v in metrics.items():
             self.log(f"test/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        return self._get_preds(batch)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
@@ -150,7 +144,40 @@ class DMPNNModel(pl.LightningModule):
         return loss
 
 
-class GCNModel(DMPNNModel):
+class DMPNNModel(ParentModel):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def init_encoder(self):
+        return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],
+                           bond_feature_size=self.hparams["bond_feature_size"],
+                           **self.hparams.encoder
+                           )
+
+    def init_decoder(self):
+        return FFN(in_size=self.hparams.encoder["hidden_size"] + self.hparams["global_feature_size"],
+                   out_size=1,
+                   **self.hparams.decoder,
+                   )
+
+    def forward(self, x):
+        graph, global_features = x
+        embedding = self.encoder(graph)
+        if global_features is not None:
+            y = self.decoder(torch.cat((embedding, global_features), dim=1))
+        else:
+            y = self.decoder(embedding)
+
+        return y
+
+    def _get_preds(self, batch):
+        graph_batch, global_features_batch, y = batch
+        y_hat = self((graph_batch, global_features_batch))
+
+        return y_hat
+
+
+class GCNModel(ParentModel):
     """
     GCN model as implemented in DGL-Lifesci.
 
@@ -192,29 +219,37 @@ class GCNModel(DMPNNModel):
         else:
             raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
 
-    def _get_preds_loss_metrics(self, batch):
-        # predict for batch
-        cgr_batch, global_features, y = batch
-        embedding = self.encoder(cgr_batch, cgr_batch.ndata["x"])
-        with cgr_batch.local_scope():
-            cgr_batch.ndata["h_v"] = embedding
+    def init_decoder(self):
+        return FFN(in_size=self.hparams.encoder["hidden_size"] + self.hparams["global_feature_size"],
+                   out_size=1,
+                   **self.hparams.decoder,
+                   )
+
+    def forward(self, x):
+        graph, global_features = x
+        embedding = self.encoder(graph, graph.ndata["x"])
+        with graph.local_scope():
+            graph.ndata["h_v"] = embedding
             if self.hparams["encoder"]["aggregation"] == "attention":
-                embedding_pooled, attention = self.pooling(cgr_batch)
+                embedding_pooled, attention = self.pooling(graph)
             else:
-                embedding_pooled = self.pooling(cgr_batch)
+                embedding_pooled = self.pooling(graph)
 
         if global_features is not None:
-            y_hat = self.decoder(torch.cat((embedding_pooled, global_features), dim=1))
+            y = self.decoder(torch.cat((embedding_pooled, global_features), dim=1))
         else:
-            y_hat = self.decoder(embedding_pooled)
+            y = self.decoder(embedding_pooled)
 
-        # calculate loss
-        loss = self.calc_loss(y_hat, y)
+        return y
 
-        return y_hat, loss, {k: v(y_hat, y) for k, v in self.metrics.items()}
+    def _get_preds(self, batch):
+        graph_batch, global_features_batch, y = batch
+        y_hat = self((graph_batch, global_features_batch))
+
+        return y_hat
 
 
-class FFNModel(DMPNNModel):
+class FFNModel(ParentModel):
     """
     FFN-only model.
 
@@ -236,16 +271,7 @@ class FFNModel(DMPNNModel):
     def forward(self, x):
         self.decoder(x)
 
-    def _get_preds_loss_metrics(self, batch):
-        # predict for batch
-        cgr_batch, global_features, y = batch
-
-        if global_features is not None:
-            y_hat = self.decoder(global_features)
-        else:
-            raise ValueError("FFNModel expects a global feature vector")
-
-        # calculate loss
-        loss = self.calc_loss(y_hat, y)
-
-        return y_hat, loss, {k: v(y_hat, y) for k, v in self.metrics.items()}
+    def _get_preds(self, batch):
+        _, global_features_batch, _ = batch
+        y_hat = self(global_features_batch)
+        return y_hat

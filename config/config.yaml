@@ -4,26 +4,26 @@ accelerator: gpu  # usually cpu or gpu.
 # data
 reaction: True
 data_name: slap_dataset_reactions.csv
-global_features: OHE  # str, options: {"RDKit", "FP", "OHE", None}. Global features to include with the graphs.
-graph_type: bond_edges  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
+global_features: None  # str, options: {"RDKit", "FP", "OHE", None}. Global features to include with the graphs.
+graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
                         # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
 featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 # model
 encoder:
-  type: global_features  # str, options: {D-MPNN, GCN, global_features}. Note that global_features will ignore all other encoder configs.
-  hidden_size: 850  # int
-  depth: 10  # int, >= 3, number of linear layers (?)
+  type: D-MPNN  # str, options: {D-MPNN, GCN, global_features}. Note that global_features will ignore all other encoder configs.
+  hidden_size: 572  # int
+  depth: 4  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers
-  dropout_ratio: 0.5  # float, probability of dropout
-  aggregation: attention  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
+  dropout_ratio: 9.19216555052358e-07  # float, probability of dropout
+  aggregation: sum  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
   activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
   type: FFN  # str, options: {FFN}.
-  hidden_size: 64  # int
-  depth: 2  # int, number of hidden layers
-  dropout_ratio: 0.5  # float, probability of dropout
+  hidden_size: 103  # int
+  depth: 1  # int, number of hidden layers
+  dropout_ratio: 9.19216555052358e-07  # float, probability of dropout
   activation: ReLU  # str, any activation from torch.nn can be used
   hidden_bias: False  # bool, whether to add bias to hidden layers
   out_bias: False  # bool, whether to add bias to output layer
@@ -31,10 +31,10 @@ decoder:
 
 optimizer:
   weight_decay: 0
-  lr: 0.0002
+  lr: 0.0003225597324579569
   lr_scheduler:
     epochs: 100  # should be the same as max_epochs for the desired effect
-    lr_min: 0.00002
+    lr_min: 3.225597324579569e-05
     lr_warmup_step: 2
     scheduler_name: exp_with_linear_warmup
 

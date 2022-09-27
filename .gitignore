@@ -4,3 +4,5 @@ outputs/
 logs/
 checkpoints/
 src/wandb/
+wandb/
+*__pycache__*

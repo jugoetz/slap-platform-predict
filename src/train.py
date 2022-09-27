@@ -3,8 +3,15 @@ from copy import deepcopy
 
 import numpy as np
 import wandb
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, roc_auc_score, roc_curve, \
-    precision_recall_curve, log_loss
+from sklearn.metrics import (
+    accuracy_score,
+    precision_recall_fscore_support,
+    confusion_matrix,
+    roc_auc_score,
+    roc_curve,
+    precision_recall_curve,
+    log_loss,
+)
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from sklearn.linear_model import LogisticRegression
@@ -20,19 +27,34 @@ def run_training(hparams, data, trainer, save_model=False):
     """Convenience wrapper around train() to train a model on a single train-test split"""
 
     # split data
-    data_train, data_val = train_test_split(data, test_size=0.2, shuffle=True, random_state=42)
+    data_train, data_val = train_test_split(
+        data, test_size=0.2, shuffle=True, random_state=42
+    )
 
     # instantiate DataLoaders
-    train_dl = DataLoader(data_train, batch_size=32, shuffle=True, collate_fn=collate_fn)
+    train_dl = DataLoader(
+        data_train, batch_size=32, shuffle=True, collate_fn=collate_fn
+    )
     val_dl = DataLoader(data_val, batch_size=32, collate_fn=collate_fn)
 
     # run training
-    metrics, trained_model = train(train_dl, val_dl, hparams, trainer, save_model=save_model)
+    metrics, trained_model = train(
+        train_dl, val_dl, hparams, trainer, save_model=save_model
+    )
 
     return metrics, trained_model
 
 
-def train(train, val, hparams, trainer, run_id=None, group_run_id=None, test=None, save_model=False):
+def train(
+    train,
+    val,
+    hparams,
+    trainer,
+    run_id=None,
+    group_run_id=None,
+    test=None,
+    save_model=False,
+):
     """
     Trains a model on a given data split with one set of hyperparameters. By default, returns the evaluation metrics
     on the validation set.
@@ -54,7 +76,9 @@ def train(train, val, hparams, trainer, run_id=None, group_run_id=None, test=Non
     if not run_id:
         run_id = generate_run_id()
 
-    wandb.init(reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams)
+    wandb.init(
+        reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams
+    )
 
     # initialize model
     if hparams["encoder"]["type"] == "D-MPNN":
@@ -69,14 +93,16 @@ def train(train, val, hparams, trainer, run_id=None, group_run_id=None, test=Non
     metrics = {k: v for k, v in trainer.logged_metrics.items()}
     # optionally, save model weights
     if save_model:
-        trainer.save_checkpoint(filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True)
+        trainer.save_checkpoint(
+            filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True
+        )
 
     # optionally, run test set
     if test:
         for test_name, test_dl in test.items():
             trainer.test(model, test_dl, ckpt_path="best")
             for k, v in trainer.logged_metrics.items():
-                if k.startswith('test'):
+                if k.startswith("test"):
                     metrics[k.replace("test", test_name)] = v
 
     wandb.log(metrics)
@@ -84,7 +110,9 @@ def train(train, val, hparams, trainer, run_id=None, group_run_id=None, test=Non
     return metrics, model
 
 
-def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None, save_model=False):
+def train_sklearn(
+    train, val, hparams, run_id=None, group_run_id=None, test=None, save_model=False
+):
     """
     Trains a sklearn model on a given data split with one set of hyperparameters. By default, returns the evaluation
     metrics on the validation set.
@@ -107,7 +135,9 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
     if not run_id:
         run_id = generate_run_id()
 
-    wandb.init(reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams)
+    wandb.init(
+        reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams
+    )
 
     # initialize model
     if hparams["decoder"]["type"] == "LogisticRegression":
@@ -132,11 +162,15 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
 
     # evaluate on training set
     train_pred = model.predict_proba(X_train)
-    train_metrics = concatenate_to_dict_keys(calculate_metrics(train_labels, train_pred, pred_proba=True), prefix="train/")
+    train_metrics = concatenate_to_dict_keys(
+        calculate_metrics(train_labels, train_pred, pred_proba=True), prefix="train/"
+    )
 
     # evaluate on validation set
     val_pred = model.predict_proba(X_val)
-    val_metrics = concatenate_to_dict_keys(calculate_metrics(val_labels, val_pred, pred_proba=True), prefix="val/")
+    val_metrics = concatenate_to_dict_keys(
+        calculate_metrics(val_labels, val_pred, pred_proba=True), prefix="val/"
+    )
 
     # optionally, save model
     if save_model:
@@ -153,7 +187,11 @@ def train_sklearn(train, val, hparams, run_id=None, group_run_id=None, test=None
             else:
                 raise ValueError("Invalid encoder type for sklearn model")
             test_pred = model.predict_proba(X_test)
-            test_metrics.update(concatenate_to_dict_keys(calculate_metrics(test_labels, test_pred, pred_proba=True), f"{k}/"))
+            test_metrics.update(
+                concatenate_to_dict_keys(
+                    calculate_metrics(test_labels, test_pred, pred_proba=True), f"{k}/"
+                )
+            )
 
     return_metrics = {}
     return_metrics.update(train_metrics)
@@ -186,8 +224,15 @@ def calculate_metrics(y_true, y_pred, pred_proba=False, detailed=False):
         y_prob = deepcopy(y_pred)
         y_pred = np.argmax(y_pred, axis=1)
 
-    metrics = {k: v for k, v in
-               zip(["precision", "recall", "f1"], precision_recall_fscore_support(y_true, y_pred, average="binary", pos_label=1))}
+    metrics = {
+        k: v
+        for k, v in zip(
+            ["precision", "recall", "f1"],
+            precision_recall_fscore_support(
+                y_true, y_pred, average="binary", pos_label=1
+            ),
+        )
+    }
     metrics["accuracy"] = accuracy_score(y_true, y_pred)
     metrics["AUROC"] = roc_auc_score(y_true, y_pred)
     metrics["loss"] = log_loss(y_true, y_prob) if pred_proba else None

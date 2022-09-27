@@ -22,6 +22,7 @@ class AvgPooling(nn.Module):
         make sure nodes in all graphs have the same feature size, and concatenate
         nodes' feature together as the input.
     """
+
     def __init__(self, ntype, feat):
         """
         Args:
@@ -58,6 +59,7 @@ class SumPooling(nn.Module):
         make sure nodes in all graphs have the same feature size, and concatenate
         nodes' feature together as the input.
     """
+
     def __init__(self, ntype, feat):
         """
         Args:
@@ -82,6 +84,7 @@ class SumPooling(nn.Module):
         readout = dgl.readout_nodes(graph, self.feat, ntype=self.ntype, op="sum")
         return readout
 
+
 class MaxPooling(nn.Module):
     """Apply max pooling over the nodes in a graph.
 
@@ -93,6 +96,7 @@ class MaxPooling(nn.Module):
         make sure nodes in all graphs have the same feature size, and concatenate
         nodes' feature together as the input.
     """
+
     def __init__(self, ntype, feat):
         """
         Args:
@@ -133,6 +137,7 @@ class GlobalAttentionPooling(nn.Module):
         feat_nn (torch.nn.Module, optional): A neural network applied to each feature before combining them with
             attention scores.
     """
+
     def __init__(self, gate_nn, ntype, feat, feat_nn=None, get_attention=False):
         super(GlobalAttentionPooling, self).__init__()
         self.gate_nn = gate_nn
@@ -156,16 +161,22 @@ class GlobalAttentionPooling(nn.Module):
         """
         with graph.local_scope():
             gate = self.gate_nn(graph.nodes[self.ntype].data[self.feat])
-            assert gate.shape[-1] == 1, "The output of gate_nn should have size 1 at the last axis."
-            feat = self.feat_nn(graph.nodes[self.ntype].data[self.feat]) if self.feat_nn else graph.nodes[self.ntype].data[self.feat]
+            assert (
+                gate.shape[-1] == 1
+            ), "The output of gate_nn should have size 1 at the last axis."
+            feat = (
+                self.feat_nn(graph.nodes[self.ntype].data[self.feat])
+                if self.feat_nn
+                else graph.nodes[self.ntype].data[self.feat]
+            )
 
             graph.nodes[self.ntype].data["gate"] = gate
             gate = dgl.softmax_nodes(graph, feat="gate", ntype=self.ntype)
-            graph.nodes[self.ntype].data.pop('gate')
+            graph.nodes[self.ntype].data.pop("gate")
 
             graph.nodes[self.ntype].data["r"] = feat * gate
             readout = dgl.readout_nodes(graph, "r", ntype=self.ntype, op="sum")
-            graph.nodes[self.ntype].data.pop('r')
+            graph.nodes[self.ntype].data.pop("r")
 
             if self.get_attention:
                 return readout, gate

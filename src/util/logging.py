@@ -14,10 +14,9 @@ def generate_run_id():
     return f"{curr_datetime.date()}-{curr_datetime.hour}{curr_datetime.minute}{curr_datetime.second}_{random.randint(100000, 999999)}"
 
 
-def concatenate_to_dict_keys(dictionary: dict,
-                             prefix: Optional[str] = None,
-                             suffix: Optional[str] = None
-                             ) -> dict:
+def concatenate_to_dict_keys(
+    dictionary: dict, prefix: Optional[str] = None, suffix: Optional[str] = None
+) -> dict:
     """
     Concatenates keys of a dictionary with a prefix and/or suffix.
     """

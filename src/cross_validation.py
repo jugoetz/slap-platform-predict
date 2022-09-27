@@ -16,7 +16,15 @@ from src.util.io import index_from_file
 from src.util.logging import generate_run_id
 
 
-def cross_validate(hparams, data, trainer, n_folds=5, strategy="KFold", save_models=False, return_fold_metrics=False):
+def cross_validate(
+    hparams,
+    data,
+    trainer,
+    n_folds=5,
+    strategy="KFold",
+    save_models=False,
+    return_fold_metrics=False,
+):
     """
     Trains a model under cross-validation. Returns the validation metrics' mean and std.
 
@@ -51,10 +59,18 @@ def cross_validate(hparams, data, trainer, n_folds=5, strategy="KFold", save_mod
             break  # exit loop for "endless" splitters like ShuffleSplit
         data_train = [data[i] for i in train_idx]
         data_val = [data[i] for i in val_idx]
-        train_dl = DataLoader(data_train, batch_size=32, shuffle=True, collate_fn=collate_fn)
+        train_dl = DataLoader(
+            data_train, batch_size=32, shuffle=True, collate_fn=collate_fn
+        )
         val_dl = DataLoader(data_val, batch_size=32, collate_fn=collate_fn)
-        fold_metrics, _ = train(train_dl, val_dl, hparams, trainer, run_id=f"{cv_run_id}_fold{i}",
-                                save_model=save_models)
+        fold_metrics, _ = train(
+            train_dl,
+            val_dl,
+            hparams,
+            trainer,
+            run_id=f"{cv_run_id}_fold{i}",
+            save_model=save_models,
+        )
         for k, v in fold_metrics.items():
             metrics[k].append(v)
 
@@ -70,7 +86,9 @@ def cross_validate(hparams, data, trainer, n_folds=5, strategy="KFold", save_mod
         return metrics_return
 
 
-def cross_validate_predefined(hparams, data, split_files, save_models=False, return_fold_metrics=False):
+def cross_validate_predefined(
+    hparams, data, split_files, save_models=False, return_fold_metrics=False
+):
     """
     Trains a model under cross-validation. Returns the validation metrics' mean/std and if test sets are given,
     test mean/std.
@@ -107,24 +125,40 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
 
         # each fold needs a new trainer instance b/c it can only fit once
         fold_run_id = f"{cv_run_id}_fold{i}"
-        trainer_fold = pl.Trainer(max_epochs=hparams["training"]["max_epochs"], log_every_n_steps=1,
-                                  default_root_dir=PROJECT_DIR,
-                                  # logger=WandbLogger(name=fold_run_id, group=cv_run_id, project="slap-gnn"),
-                                  accelerator=hparams["accelerator"])
+        trainer_fold = pl.Trainer(
+            max_epochs=hparams["training"]["max_epochs"],
+            log_every_n_steps=1,
+            default_root_dir=PROJECT_DIR,
+            # logger=WandbLogger(name=fold_run_id, group=cv_run_id, project="slap-gnn"),
+            accelerator=hparams["accelerator"],
+        )
 
         # load indices from file
         idx = {k: index_from_file(v) for k, v in fold.items()}
 
         # instantiate DataLoaders
         data_splitted = {k: [data[i] for i in v] for k, v in idx.items()}
-        train_dl = DataLoader(data_splitted["train"], batch_size=32, shuffle=True, collate_fn=collate_fn)
+        train_dl = DataLoader(
+            data_splitted["train"], batch_size=32, shuffle=True, collate_fn=collate_fn
+        )
         val_dl = DataLoader(data_splitted["val"], batch_size=32, collate_fn=collate_fn)
-        test_dls = {k: DataLoader(v, batch_size=32, collate_fn=collate_fn) for k, v in data_splitted.items() if
-                    k.startswith("test")}
+        test_dls = {
+            k: DataLoader(v, batch_size=32, collate_fn=collate_fn)
+            for k, v in data_splitted.items()
+            if k.startswith("test")
+        }
 
         # train and validate model
-        fold_metrics_val, model = train(train_dl, val_dl, hparams, trainer_fold, test=test_dls, run_id=fold_run_id,
-                                        group_run_id=cv_run_id, save_model=save_models)
+        fold_metrics_val, model = train(
+            train_dl,
+            val_dl,
+            hparams,
+            trainer_fold,
+            test=test_dls,
+            run_id=fold_run_id,
+            group_run_id=cv_run_id,
+            save_model=save_models,
+        )
         for k, v in fold_metrics_val.items():
             metrics[k].append(v)
 
@@ -144,7 +178,9 @@ def cross_validate_predefined(hparams, data, split_files, save_models=False, ret
         return metrics_return
 
 
-def cross_validate_sklearn(hparams, data, split_files, save_models=False, return_fold_metrics=False):
+def cross_validate_sklearn(
+    hparams, data, split_files, save_models=False, return_fold_metrics=False
+):
     """
     Trains a sklearn model under cross-validation. Returns the validation metrics' mean/std and if test sets are given,
     test mean/std.
@@ -186,11 +222,15 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
 
         # instantiate Dataset splits instead of DataLoaders
         data_splitted = {k: [data[i] for i in v] for k, v in idx.items()}
-        fold_metrics, model = train_sklearn(data_splitted["train"], data_splitted["val"], hparams, run_id=fold_run_id,
-                                            test={k: v for k, v in data_splitted.items() if k.startswith("test")},
-                                            save_model=save_models,
-                                            group_run_id=cv_run_id,
-                                            )
+        fold_metrics, model = train_sklearn(
+            data_splitted["train"],
+            data_splitted["val"],
+            hparams,
+            run_id=fold_run_id,
+            test={k: v for k, v in data_splitted.items() if k.startswith("test")},
+            save_model=save_models,
+            group_run_id=cv_run_id,
+        )
 
         for k, v in fold_metrics.items():
             metrics[k][i] = v
@@ -199,8 +239,12 @@ def cross_validate_sklearn(hparams, data, split_files, save_models=False, return
     aggregated_metrics = {}
     for k, v in metrics.items():
         if k.endswith(
-                ("precision", "recall", "f1", "accuracy", "roc_auc", "loss")):  # these are the metrics that can be aggregated
-            aggregated_metrics[k + "_mean"], aggregated_metrics[k + "_std"] = v.mean(), v.std()
+            ("precision", "recall", "f1", "accuracy", "roc_auc", "loss")
+        ):  # these are the metrics that can be aggregated
+            aggregated_metrics[k + "_mean"], aggregated_metrics[k + "_std"] = (
+                v.mean(),
+                v.std(),
+            )
 
     if return_fold_metrics:
         return aggregated_metrics, metrics

@@ -31,18 +31,18 @@ class FFN(nn.Module):
     """
 
     def __init__(
-            self,
-            in_size: int,
-            hidden_size: int,
-            depth: int,
-            *,
-            dropout_ratio: float = 0.0,
-            activation: Union[Callable, str] = "ReLU",
-            hidden_bias: bool = True,
-            out_size: Optional[int] = None,
-            out_bias: bool = True,
-            out_sigmoid: bool = False,
-            **kwargs,
+        self,
+        in_size: int,
+        hidden_size: int,
+        depth: int,
+        *,
+        dropout_ratio: float = 0.0,
+        activation: Union[Callable, str] = "ReLU",
+        hidden_bias: bool = True,
+        out_size: Optional[int] = None,
+        out_bias: bool = True,
+        out_sigmoid: bool = False,
+        **kwargs,
     ):
         super().__init__()
         self.num_hidden_layers = depth
@@ -76,7 +76,6 @@ class FFN(nn.Module):
     def forward(self, x):
         # the output is shape (n_samples_in_batch, 1), which we reshape to (n_samples_in_batch,) for convenience
         return self.ffn(x).reshape(-1)
-
 
     def __repr__(self):
         s = f"FFN, num hidden layers: {self.num_hidden_layers}"

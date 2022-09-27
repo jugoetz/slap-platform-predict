@@ -241,7 +241,7 @@ class BaseModel(pl.LightningModule):
                         ),
                         "auroc": tm.AUROC(
                             num_classes=n, average="macro", compute_on_step=False
-                        )
+                        ),
                     }
                 )
 
@@ -577,11 +577,12 @@ class MoleculeModel(BaseModel):
         reaction_type = decoder(reaction_feats)
         return {"reaction_type": reaction_type}
 
-    def forward(self,
-                mol_graph: BatchMolGraph,
-                atom_descriptors_batch: List[np.ndarray] = None,
-                return_mode: Optional[str] = None,
-                ) -> torch.FloatTensor:
+    def forward(
+        self,
+        mol_graph: BatchMolGraph,
+        atom_descriptors_batch: List[np.ndarray] = None,
+        return_mode: Optional[str] = None,
+    ) -> torch.FloatTensor:
 
         if return_mode is None:
             return self.backbone(mol_graph, atom_descriptors_batch)
@@ -595,9 +596,7 @@ class MoleculeModel(BaseModel):
         #     )
 
         elif return_mode == "reaction_type":  # classification
-            reaction_feats = self.backbone(
-                mol_graph, atom_descriptors_batch
-            )
+            reaction_feats = self.backbone(mol_graph, atom_descriptors_batch)
             preds = self.decode(reaction_feats)
             return preds[return_mode]
 
@@ -653,22 +652,25 @@ class MoleculeModel(BaseModel):
             end_factor = 1
             n_warmup_epochs = self.hparams.lr_scheduler["lr_warmup_step"]
 
-            gamma = start_factor ** (1 / (self.hparams.lr_scheduler["epochs"] - n_warmup_epochs))
+            gamma = start_factor ** (
+                1 / (self.hparams.lr_scheduler["epochs"] - n_warmup_epochs)
+            )
 
             def lr_foo(epoch):
                 if epoch <= self.hparams.lr_scheduler["lr_warmup_step"]:
                     # warm up lr
-                    lr_scale = start_factor + (epoch * (end_factor - start_factor / end_factor) / n_warmup_epochs)
+                    lr_scale = start_factor + (
+                        epoch
+                        * (end_factor - start_factor / end_factor)
+                        / n_warmup_epochs
+                    )
 
                 else:
                     lr_scale = gamma ** (epoch - n_warmup_epochs)
 
                 return lr_scale
 
-            scheduler = LambdaLR(
-                optimizer,
-                lr_lambda=lr_foo
-            )
+            scheduler = LambdaLR(optimizer, lr_lambda=lr_foo)
 
         elif scheduler_name == "none":
             scheduler = None
@@ -676,7 +678,6 @@ class MoleculeModel(BaseModel):
             raise ValueError(f"Not supported lr scheduler: {self.hparams.lr_scheduler}")
 
         return scheduler
-
 
     def shared_step(self, batch, mode):
 
@@ -809,10 +810,11 @@ class MoleculeModelDgl(BaseModel):
         reaction_type = decoder(reaction_feats)
         return {"reaction_type": reaction_type}
 
-    def forward(self,
-                cgr_graph: dgl.DGLGraph,
-                return_mode: Optional[str] = None,
-                ) -> torch.FloatTensor:
+    def forward(
+        self,
+        cgr_graph: dgl.DGLGraph,
+        return_mode: Optional[str] = None,
+    ) -> torch.FloatTensor:
 
         if return_mode is None:
             return self.backbone(cgr_graph)
@@ -874,22 +876,25 @@ class MoleculeModelDgl(BaseModel):
             end_factor = 1
             n_warmup_epochs = self.hparams.lr_scheduler["lr_warmup_step"]
 
-            gamma = start_factor ** (1 / (self.hparams.lr_scheduler["epochs"] - n_warmup_epochs))
+            gamma = start_factor ** (
+                1 / (self.hparams.lr_scheduler["epochs"] - n_warmup_epochs)
+            )
 
             def lr_foo(epoch):
                 if epoch <= self.hparams.lr_scheduler["lr_warmup_step"]:
                     # warm up lr
-                    lr_scale = start_factor + (epoch * (end_factor - start_factor / end_factor) / n_warmup_epochs)
+                    lr_scale = start_factor + (
+                        epoch
+                        * (end_factor - start_factor / end_factor)
+                        / n_warmup_epochs
+                    )
 
                 else:
                     lr_scale = gamma ** (epoch - n_warmup_epochs)
 
                 return lr_scale
 
-            scheduler = LambdaLR(
-                optimizer,
-                lr_lambda=lr_foo
-            )
+            scheduler = LambdaLR(optimizer, lr_lambda=lr_foo)
 
         elif scheduler_name == "none":
             scheduler = None
@@ -897,7 +902,6 @@ class MoleculeModelDgl(BaseModel):
             raise ValueError(f"Not supported lr scheduler: {self.hparams.lr_scheduler}")
 
         return scheduler
-
 
     def shared_step(self, batch, mode):
 

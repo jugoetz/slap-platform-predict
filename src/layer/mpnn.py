@@ -14,18 +14,19 @@ class MPNNEncoder(nn.Module):
     A :class:`MPNNEncoder` is a message passing neural network for encoding a molecule.
     """
 
-    def __init__(self,
-                 atom_feature_size: int,
-                 bond_feature_size: int,
-                 *,
-                 hidden_size: int = 300,
-                 bias: bool = False,
-                 depth: int = 3,
-                 dropout_ratio: float = 0.0,
-                 aggregation: str = "mean",
-                 activation: Union[str, callable] = "ReLU",
-                 **kwargs,
-                 ):
+    def __init__(
+        self,
+        atom_feature_size: int,
+        bond_feature_size: int,
+        *,
+        hidden_size: int = 300,
+        bias: bool = False,
+        depth: int = 3,
+        dropout_ratio: float = 0.0,
+        aggregation: str = "mean",
+        activation: Union[str, callable] = "ReLU",
+        **kwargs,
+    ):
         """
         Several functions from Chemprop are not available as of now (b/c we don't need them):
             - atom_messages
@@ -74,7 +75,12 @@ class MPNNEncoder(nn.Module):
 
         # Pooling
         if self.aggregation == "attention":
-            self.pooling = GlobalAttentionPooling(gate_nn=nn.Linear(self.hidden_size, 1), ntype="atom", feat="h_v", get_attention=True)
+            self.pooling = GlobalAttentionPooling(
+                gate_nn=nn.Linear(self.hidden_size, 1),
+                ntype="atom",
+                feat="h_v",
+                get_attention=True,
+            )
         elif self.aggregation == "mean":
             self.pooling = AvgPooling(ntype="atom", feat="h_v")
         elif self.aggregation == "sum":
@@ -82,11 +88,14 @@ class MPNNEncoder(nn.Module):
         elif self.aggregation == "max":
             self.pooling = MaxPooling(ntype="atom", feat="h_v")
         else:
-            raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
+            raise ValueError(
+                "Aggregation must be one of ['max', 'mean', 'sum', 'attention']"
+            )
 
-    def forward(self,
-                graph: dgl.DGLGraph,
-                ) -> torch.FloatTensor:
+    def forward(
+        self,
+        graph: dgl.DGLGraph,
+    ) -> torch.FloatTensor:
         """
         Encodes CGR graphs (can be a batch of graphs, i.e. one graph containing multiple unconnected entities)
 
@@ -133,7 +142,9 @@ class MPNNEncoder(nn.Module):
             Here we conduct h_b = tau(W_i * concat(x, e))
             Where x is the incoming message, e the bond feature, W_i a linear layer and tau an activation.
             """
-            concat_feats = torch.cat((nodes.data["x"], nodes.data["e"]), dim=1)  # num_bond_nodes x (len(x) + len(e))
+            concat_feats = torch.cat(
+                (nodes.data["x"], nodes.data["e"]), dim=1
+            )  # num_bond_nodes x (len(x) + len(e))
             out = self.act_func(self.W_i(concat_feats))  # num_bond_nodes x hidden_size
             return {"h_0": out}
 
@@ -154,7 +165,9 @@ class MPNNEncoder(nn.Module):
             Here we conduct h_b(t+1) = tau(h_0 + W_h * m)
             Where m is the sum of incoming messages m_b, W_h a linear layer, h_0 the initial bond hidden state and tau an activation.
             """
-            out = self.act_func(nodes.data["h_0"] + self.W_h(nodes.data["m"]))  # num_nodes x hidden_size
+            out = self.act_func(
+                nodes.data["h_0"] + self.W_h(nodes.data["m"])
+            )  # num_nodes x hidden_size
             return {"h_b": out}
 
         # in the first layer, we start from h_0
@@ -166,7 +179,9 @@ class MPNNEncoder(nn.Module):
         )
 
         # from the second layer onwards, the message is state h_b
-        for _ in range(self.depth - 3):  # -3 for input layer + separately treated 1st layer above + output layer
+        for _ in range(
+            self.depth - 3
+        ):  # -3 for input layer + separately treated 1st layer above + output layer
             graph.update_all(
                 fn.copy_u("h_b", "m_b"),
                 fn.sum("m_b", "m"),
@@ -185,7 +200,9 @@ class MPNNEncoder(nn.Module):
             Here we conduct h_v = tau(W_o * concat(x, m))
             Where x is the atom features, m the sum of bond messages m_b, W_o a linear layer and tau an activation.
             """
-            concat_feats = torch.concat((nodes.data["x"], nodes.data["m"]), dim=1)  # num_nodes x (len(x) + hidden_size)
+            concat_feats = torch.concat(
+                (nodes.data["x"], nodes.data["m"]), dim=1
+            )  # num_nodes x (len(x) + hidden_size)
             out = self.act_func(self.W_o(concat_feats))  # num_atom_nodes x hidden_size
 
             return {"h_v": out}

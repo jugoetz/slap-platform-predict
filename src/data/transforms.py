@@ -225,8 +225,10 @@ class SubgraphCGR(Transform):
             # we want the subgraph of atom nodes and then as a second step add in bond nodes
             # for this we need the atom-only CGR which we can recover from the bond-node CGR
 
-            transform = dgl.AddMetaPaths({"bond": [("atom", "starts", "bond"), ("bond", "leads_to", "atom")]},
-                                         keep_orig_edges=False)
+            transform = dgl.AddMetaPaths(
+                {"bond": [("atom", "starts", "bond"), ("bond", "leads_to", "atom")]},
+                keep_orig_edges=False,
+            )
             atom_only_cgr = transform(cgr_g)
 
             # NOTE, get number of samples to keep
@@ -279,14 +281,24 @@ class SubgraphCGR(Transform):
 
             # we still need all bond nodes for which both the start and end atom are in sub_graph
             bonds_starting_in_subgraph = np.concatenate(
-                [cgr_g.successors(n, etype=("atom", "starts", "bond")).numpy() for n in sub_graph]
+                [
+                    cgr_g.successors(n, etype=("atom", "starts", "bond")).numpy()
+                    for n in sub_graph
+                ]
             )
             bonds_ending_in_subgraph = np.concatenate(
-                [cgr_g.predecessors(n, etype=("bond", "leads_to", "atom")).numpy() for n in sub_graph]
+                [
+                    cgr_g.predecessors(n, etype=("bond", "leads_to", "atom")).numpy()
+                    for n in sub_graph
+                ]
             )
-            selected_bond_nodes = np.intersect1d(bonds_starting_in_subgraph, bonds_ending_in_subgraph)
+            selected_bond_nodes = np.intersect1d(
+                bonds_starting_in_subgraph, bonds_ending_in_subgraph
+            )
 
-            sub_cgr = dgl.node_subgraph(cgr_g, {"atom": selected_atom_nodes, "bond": selected_bond_nodes})
+            sub_cgr = dgl.node_subgraph(
+                cgr_g, {"atom": selected_atom_nodes, "bond": selected_bond_nodes}
+            )
 
             return sub_cgr, None
 

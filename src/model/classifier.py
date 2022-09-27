@@ -18,12 +18,15 @@ class ParentModel(pl.LightningModule):
         self.save_hyperparameters()
         self.encoder = self.init_encoder()
         self.decoder = self.init_decoder()
-        self.metrics = torch.nn.ModuleDict({"accuracy": tm.Accuracy(),
-                                            "AUROC": tm.AUROC(),
-                                            "precision": tm.Precision(),
-                                            "recall": tm.Recall(),
-                                            "f1": tm.F1Score(),
-                                            })
+        self.metrics = torch.nn.ModuleDict(
+            {
+                "accuracy": tm.Accuracy(),
+                "AUROC": tm.AUROC(),
+                "precision": tm.Precision(),
+                "recall": tm.Recall(),
+                "f1": tm.F1Score(),
+            }
+        )
 
     def init_encoder(self):
         raise NotImplementedError("Child class must implement this method")
@@ -48,23 +51,45 @@ class ParentModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log(
+            "train/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
         for k, v in metrics.items():
-            self.log(f"train/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+            self.log(
+                f"train/{k}",
+                v,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                logger=True,
+            )
         return loss
 
     def validation_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log(
+            "val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
         for k, v in metrics.items():
-            self.log(f"val/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+            self.log(
+                f"val/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True
+            )
         return loss
 
     def test_step(self, batch, batch_idx):
         preds, loss, metrics = self._get_preds_loss_metrics(batch)
-        self.log("test/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log(
+            "test/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
         for k, v in metrics.items():
-            self.log(f"test/{k}", v, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+            self.log(
+                f"test/{k}",
+                v,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+                logger=True,
+            )
         return loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -91,7 +116,9 @@ class ParentModel(pl.LightningModule):
 
     def _config_lr_scheduler(self, optimizer):
 
-        scheduler_name = self.hparams.optimizer["lr_scheduler"]["scheduler_name"].lower()
+        scheduler_name = self.hparams.optimizer["lr_scheduler"][
+            "scheduler_name"
+        ].lower()
 
         if scheduler_name == "reduce_on_plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -104,27 +131,32 @@ class ParentModel(pl.LightningModule):
             end_factor = 1
             n_warmup_epochs = self.hparams.optimizer["lr_scheduler"]["lr_warmup_step"]
 
-            gamma = start_factor ** (1 / (self.hparams.optimizer["lr_scheduler"]["epochs"] - n_warmup_epochs))
+            gamma = start_factor ** (
+                1 / (self.hparams.optimizer["lr_scheduler"]["epochs"] - n_warmup_epochs)
+            )
 
             def lr_foo(epoch):
                 if epoch <= self.hparams.optimizer["lr_scheduler"]["lr_warmup_step"]:
                     # warm up lr
-                    lr_scale = start_factor + (epoch * (end_factor - start_factor / end_factor) / n_warmup_epochs)
+                    lr_scale = start_factor + (
+                        epoch
+                        * (end_factor - start_factor / end_factor)
+                        / n_warmup_epochs
+                    )
 
                 else:
                     lr_scale = gamma ** (epoch - n_warmup_epochs)
 
                 return lr_scale
 
-            scheduler = torch.optim.lr_scheduler.LambdaLR(
-                optimizer,
-                lr_lambda=lr_foo
-            )
+            scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_foo)
 
         elif scheduler_name == "none":
             scheduler = None
         else:
-            raise ValueError(f"Not supported lr scheduler: {self.hparams.optimizer['lr_scheduler']}")
+            raise ValueError(
+                f"Not supported lr scheduler: {self.hparams.optimizer['lr_scheduler']}"
+            )
 
         return scheduler
 
@@ -133,7 +165,7 @@ class ParentModel(pl.LightningModule):
             loss = F.binary_cross_entropy(
                 preds,
                 truth.to(torch.float),  # input label is int for metric purpose
-                reduction="mean"
+                reduction="mean",
             )
         else:
             loss = F.binary_cross_entropy_with_logits(
@@ -149,16 +181,19 @@ class DMPNNModel(ParentModel):
         super().__init__(**kwargs)
 
     def init_encoder(self):
-        return MPNNEncoder(atom_feature_size=self.hparams["atom_feature_size"],
-                           bond_feature_size=self.hparams["bond_feature_size"],
-                           **self.hparams.encoder
-                           )
+        return MPNNEncoder(
+            atom_feature_size=self.hparams["atom_feature_size"],
+            bond_feature_size=self.hparams["bond_feature_size"],
+            **self.hparams.encoder,
+        )
 
     def init_decoder(self):
-        return FFN(in_size=self.hparams.encoder["hidden_size"] + self.hparams["global_feature_size"],
-                   out_size=1,
-                   **self.hparams.decoder,
-                   )
+        return FFN(
+            in_size=self.hparams.encoder["hidden_size"]
+            + self.hparams["global_feature_size"],
+            out_size=1,
+            **self.hparams.decoder,
+        )
 
     def forward(self, x):
         graph, global_features = x
@@ -195,21 +230,32 @@ class GCNModel(ParentModel):
         self.init_pooling()
 
     def init_encoder(self):
-        return GCN(in_feats=self.hparams["atom_feature_size"],
-                   hidden_feats=[self.hparams["encoder"]["hidden_size"] for _ in
-                                 range(self.hparams["encoder"]["depth"])],
-                   gnn_norm=["both" for _ in range(self.hparams["encoder"]["depth"])],
-                   activation=[get_activation(self.hparams["encoder"]["activation"]) for _ in
-                               range(self.hparams["encoder"]["depth"])],
-                   batchnorm=[False for _ in range(self.hparams["encoder"]["depth"])],
-                   dropout=[self.hparams["encoder"]["dropout_ratio"] for _ in range(self.hparams["encoder"]["depth"])],
-                   )
+        return GCN(
+            in_feats=self.hparams["atom_feature_size"],
+            hidden_feats=[
+                self.hparams["encoder"]["hidden_size"]
+                for _ in range(self.hparams["encoder"]["depth"])
+            ],
+            gnn_norm=["both" for _ in range(self.hparams["encoder"]["depth"])],
+            activation=[
+                get_activation(self.hparams["encoder"]["activation"])
+                for _ in range(self.hparams["encoder"]["depth"])
+            ],
+            batchnorm=[False for _ in range(self.hparams["encoder"]["depth"])],
+            dropout=[
+                self.hparams["encoder"]["dropout_ratio"]
+                for _ in range(self.hparams["encoder"]["depth"])
+            ],
+        )
 
     def init_pooling(self):
         if self.hparams["encoder"]["aggregation"] == "attention":
-            self.pooling = GlobalAttentionPooling(gate_nn=nn.Linear(self.hparams["encoder"]["hidden_size"], 1),
-                                                  ntype="_N", feat="h_v",
-                                                  get_attention=True)
+            self.pooling = GlobalAttentionPooling(
+                gate_nn=nn.Linear(self.hparams["encoder"]["hidden_size"], 1),
+                ntype="_N",
+                feat="h_v",
+                get_attention=True,
+            )
         elif self.hparams["encoder"]["aggregation"] == "mean":
             self.pooling = AvgPooling(ntype="_N", feat="h_v")
         elif self.hparams["encoder"]["aggregation"] == "sum":
@@ -217,13 +263,17 @@ class GCNModel(ParentModel):
         elif self.hparams["encoder"]["aggregation"] == "max":
             self.pooling = MaxPooling(ntype="_N", feat="h_v")
         else:
-            raise ValueError("Aggregation must be one of ['max', 'mean', 'sum', 'attention']")
+            raise ValueError(
+                "Aggregation must be one of ['max', 'mean', 'sum', 'attention']"
+            )
 
     def init_decoder(self):
-        return FFN(in_size=self.hparams.encoder["hidden_size"] + self.hparams["global_feature_size"],
-                   out_size=1,
-                   **self.hparams.decoder,
-                   )
+        return FFN(
+            in_size=self.hparams.encoder["hidden_size"]
+            + self.hparams["global_feature_size"],
+            out_size=1,
+            **self.hparams.decoder,
+        )
 
     def forward(self, x):
         graph, global_features = x
@@ -263,10 +313,11 @@ class FFNModel(ParentModel):
         return None
 
     def init_decoder(self):
-        return FFN(in_size=self.hparams["global_feature_size"],
-                   out_size=1,
-                   **self.hparams.decoder,
-                   )
+        return FFN(
+            in_size=self.hparams["global_feature_size"],
+            out_size=1,
+            **self.hparams.decoder,
+        )
 
     def forward(self, x):
         self.decoder(x)

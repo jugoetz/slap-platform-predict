@@ -14,7 +14,7 @@ from src.util.configuration import get_config
 from src.util.definitions import LOG_DIR, DATA_ROOT, PROJECT_DIR
 from src.util.logging import generate_run_id
 
-os.environ['WANDB_MODE'] = 'offline'
+os.environ["WANDB_MODE"] = "offline"
 
 
 def train(data, hparams, trainer, run_id=None, save_model=True):
@@ -35,7 +35,13 @@ def train(data, hparams, trainer, run_id=None, save_model=True):
     if not run_id:
         run_id = generate_run_id()
 
-    wandb.init(reinit=True, project="slap-gnn", name=run_id, group="single_point_training", config=hparams)
+    wandb.init(
+        reinit=True,
+        project="slap-gnn",
+        name=run_id,
+        group="single_point_training",
+        config=hparams,
+    )
 
     # initialize model
     if hparams["encoder"]["type"] == "D-MPNN":
@@ -49,7 +55,9 @@ def train(data, hparams, trainer, run_id=None, save_model=True):
     trainer.fit(model, train_dataloaders=data)
     # optionally, save model weights
     if save_model:
-        trainer.save_checkpoint(filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True)
+        trainer.save_checkpoint(
+            filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True
+        )
 
     wandb.finish()
     return model
@@ -73,20 +81,23 @@ def predict(model, data, trainer):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", type=str, default="config.yaml", help="Path to config file")
+parser.add_argument(
+    "--config", type=str, default="config.yaml", help="Path to config file"
+)
 args = parser.parse_args()
 
 config = get_config(args.config)
 # load data
-data = SLAPDataset(name=config["data_name"],
-                   raw_dir=DATA_ROOT,
-                   reaction=config["reaction"],
-                   smiles_columns=("SMILES", ),
-                   label_column="targets",
-                   graph_type=config["graph_type"],
-                   global_features=config["global_features"],
-                   featurizers=config["featurizers"],
-                   )
+data = SLAPDataset(
+    name=config["data_name"],
+    raw_dir=DATA_ROOT,
+    reaction=config["reaction"],
+    smiles_columns=("SMILES",),
+    label_column="targets",
+    graph_type=config["graph_type"],
+    global_features=config["global_features"],
+    featurizers=config["featurizers"],
+)
 
 dl = DataLoader(data, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
@@ -94,24 +105,30 @@ dl = DataLoader(data, batch_size=32, shuffle=True, collate_fn=collate_fn)
 config["atom_feature_size"] = data.atom_feature_size
 config["bond_feature_size"] = data.bond_feature_size
 config["global_feature_size"] = data.global_feature_size
-trainer = pl.Trainer(max_epochs=config["training"]["max_epochs"], log_every_n_steps=1,
-                                  default_root_dir=PROJECT_DIR,
-                                  accelerator=config["accelerator"])
+trainer = pl.Trainer(
+    max_epochs=config["training"]["max_epochs"],
+    log_every_n_steps=1,
+    default_root_dir=PROJECT_DIR,
+    accelerator=config["accelerator"],
+)
 model = train(dl, config, trainer)
 
 
-predict_data = SLAPDataset(name="validation_plate_featurized_partial.csv",
-                   raw_dir=DATA_ROOT,
-                   reaction=config["reaction"],
-                   smiles_columns=("reactionSMILES", ),
-                   label_column=None,
-                   graph_type=config["graph_type"],
-                   global_features=config["global_features"],
-                   featurizers=config["featurizers"],
-                   )
+predict_data = SLAPDataset(
+    name="validation_plate_featurized_partial.csv",
+    raw_dir=DATA_ROOT,
+    reaction=config["reaction"],
+    smiles_columns=("reactionSMILES",),
+    label_column=None,
+    graph_type=config["graph_type"],
+    global_features=config["global_features"],
+    featurizers=config["featurizers"],
+)
 
 
-predict_dl = DataLoader(predict_data, batch_size=32, collate_fn=collate_fn, shuffle=False)
+predict_dl = DataLoader(
+    predict_data, batch_size=32, collate_fn=collate_fn, shuffle=False
+)
 
 predictions = predict(model, predict_dl, trainer)
 # save predictions to text file

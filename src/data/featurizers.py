@@ -18,7 +18,7 @@ from dgllife.utils.featurizers import (
     bond_type_one_hot,
     bond_is_conjugated,
     bond_is_in_ring,
-    bond_stereo_one_hot
+    bond_stereo_one_hot,
 )
 from rdkit.Chem import Mol, MolFromSmiles
 from rdkit.Chem.rdMolDescriptors import GetMorganFingerprintAsBitVect
@@ -52,28 +52,143 @@ class ChempropAtomFeaturizer(BaseAtomFeaturizer):
 
     """
 
-    def __init__(self, atom_data_field='h'):
-        allowable_atoms = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl',
-                           'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As',
-                           'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
-                           'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu',
-                           'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt',
-                           'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U', 'Np',
-                           'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm']
+    def __init__(self, atom_data_field="h"):
+        allowable_atoms = [
+            "H",
+            "He",
+            "Li",
+            "Be",
+            "B",
+            "C",
+            "N",
+            "O",
+            "F",
+            "Ne",
+            "Na",
+            "Mg",
+            "Al",
+            "Si",
+            "P",
+            "S",
+            "Cl",
+            "Ar",
+            "K",
+            "Ca",
+            "Sc",
+            "Ti",
+            "V",
+            "Cr",
+            "Mn",
+            "Fe",
+            "Co",
+            "Ni",
+            "Cu",
+            "Zn",
+            "Ga",
+            "Ge",
+            "As",
+            "Se",
+            "Br",
+            "Kr",
+            "Rb",
+            "Sr",
+            "Y",
+            "Zr",
+            "Nb",
+            "Mo",
+            "Tc",
+            "Ru",
+            "Rh",
+            "Pd",
+            "Ag",
+            "Cd",
+            "In",
+            "Sn",
+            "Sb",
+            "Te",
+            "I",
+            "Xe",
+            "Cs",
+            "Ba",
+            "La",
+            "Ce",
+            "Pr",
+            "Nd",
+            "Pm",
+            "Sm",
+            "Eu",
+            "Gd",
+            "Tb",
+            "Dy",
+            "Ho",
+            "Er",
+            "Tm",
+            "Yb",
+            "Lu",
+            "Hf",
+            "Ta",
+            "W",
+            "Re",
+            "Os",
+            "Ir",
+            "Pt",
+            "Au",
+            "Hg",
+            "Tl",
+            "Pb",
+            "Bi",
+            "Po",
+            "At",
+            "Rn",
+            "Fr",
+            "Ra",
+            "Ac",
+            "Th",
+            "Pa",
+            "U",
+            "Np",
+            "Pu",
+            "Am",
+            "Cm",
+            "Bk",
+            "Cf",
+            "Es",
+            "Fm",
+        ]
 
         super(ChempropAtomFeaturizer, self).__init__(
-            featurizer_funcs={atom_data_field: ConcatFeaturizer(
-                [partial(atom_type_one_hot, allowable_set=allowable_atoms, encode_unknown=True),
-                 partial(atom_total_degree_one_hot, allowable_set=list(range(6)), encode_unknown=True),
-                 partial(atom_formal_charge_one_hot, allowable_set=[-1, -2, 1, 2, 0], encode_unknown=True),
-                 partial(atom_chiral_tag_one_hot, encode_unknown=True),
-                 # note that this encode_unknown=True does not make sense as the chiral tags already cover this case. But we follow the ref implementation.
-                 partial(atom_total_num_H_one_hot, allowable_set=list(range(5)), encode_unknown=True),
-                 partial(atom_hybridization_one_hot, encode_unknown=True),
-                 atom_is_aromatic,
-                 atom_mass,
-                 ]
-            )})
+            featurizer_funcs={
+                atom_data_field: ConcatFeaturizer(
+                    [
+                        partial(
+                            atom_type_one_hot,
+                            allowable_set=allowable_atoms,
+                            encode_unknown=True,
+                        ),
+                        partial(
+                            atom_total_degree_one_hot,
+                            allowable_set=list(range(6)),
+                            encode_unknown=True,
+                        ),
+                        partial(
+                            atom_formal_charge_one_hot,
+                            allowable_set=[-1, -2, 1, 2, 0],
+                            encode_unknown=True,
+                        ),
+                        partial(atom_chiral_tag_one_hot, encode_unknown=True),
+                        # note that this encode_unknown=True does not make sense as the chiral tags already cover this case. But we follow the ref implementation.
+                        partial(
+                            atom_total_num_H_one_hot,
+                            allowable_set=list(range(5)),
+                            encode_unknown=True,
+                        ),
+                        partial(atom_hybridization_one_hot, encode_unknown=True),
+                        atom_is_aromatic,
+                        atom_mass,
+                    ]
+                )
+            }
+        )
 
 
 class ChempropBondFeaturizer(BaseBondFeaturizer):
@@ -107,17 +222,22 @@ class ChempropBondFeaturizer(BaseBondFeaturizer):
     PAGTNEdgeFeaturizer
     """
 
-    def __init__(self, bond_data_field='e'):
+    def __init__(self, bond_data_field="e"):
         super(ChempropBondFeaturizer, self).__init__(
-            featurizer_funcs={bond_data_field: ConcatFeaturizer(
-                [lambda bond: [0],
-                 bond_type_one_hot,
-                 bond_is_conjugated,
-                 bond_is_in_ring,
-                 partial(bond_stereo_one_hot, encode_unknown=True)
-                 # encode_unknown seems unnecessary as one of the options is STEREONONE. But we still follow the ref implementation.
-                 ]
-            )}, self_loop=False)
+            featurizer_funcs={
+                bond_data_field: ConcatFeaturizer(
+                    [
+                        lambda bond: [0],
+                        bond_type_one_hot,
+                        bond_is_conjugated,
+                        bond_is_in_ring,
+                        partial(bond_stereo_one_hot, encode_unknown=True)
+                        # encode_unknown seems unnecessary as one of the options is STEREONONE. But we still follow the ref implementation.
+                    ]
+                )
+            },
+            self_loop=False,
+        )
 
 
 class RDKitMorganFingerprinter:
@@ -137,7 +257,9 @@ class RDKitMorganFingerprinter:
         arrays = []
         for smi in smiles:
             mol = MolFromSmiles(smi)
-            fp = GetMorganFingerprintAsBitVect(mol, radius=self.radius, nBits=self.n_bits)
+            fp = GetMorganFingerprintAsBitVect(
+                mol, radius=self.radius, nBits=self.n_bits
+            )
             arr = np.zeros(self.n_bits)
             ConvertToNumpyArray(fp, arr)
             arrays.append(arr)
@@ -152,6 +274,7 @@ class OneHotEncoder:
     """
     Molecule featurization with one-hot vector
     """
+
     classes = {}
 
     def add_dimension(self, smiles: list):
@@ -183,10 +306,14 @@ class OneHotEncoder:
         """
         # check if the encoder has been initialized
         if self.n_dimensions == 0:
-            raise RuntimeError("OneHotEncoder must be initialized by calling add_dimension() at least once before processing.")
+            raise RuntimeError(
+                "OneHotEncoder must be initialized by calling add_dimension() at least once before processing."
+            )
         # check if the number of smiles is equal to the number of dimensions
         if len(smiles) != self.n_dimensions:
-            raise ValueError("Expected {} smiles, got {}".format(self.n_dimensions, len(smiles)))
+            raise ValueError(
+                "Expected {} smiles, got {}".format(self.n_dimensions, len(smiles))
+            )
         feat_sizes = self.feat_size_by_dimension
         one_hot_vector = np.zeros(sum(feat_sizes))
 
@@ -229,16 +356,22 @@ class RDKit2DGlobalFeaturizer:
         else:
             self.features_generator = MakeGenerator(("rdkit2d",))
         # we only need to evaluate feat_size once as the generator is not intended for change during runtime
-        self._feat_size = len(self.features_generator.process("C")) - 1  # -1 for the initial 'True' that we do not return
+        self._feat_size = (
+            len(self.features_generator.process("C")) - 1
+        )  # -1 for the initial 'True' that we do not return
 
     def process(self, *smiles):
         feat = np.zeros((len(smiles) * self.feat_size), dtype="float32")
         for i, smi in enumerate(smiles):
             features = self.features_generator.process(smi)
             if features is None:  # fail
-                raise ValueError(f"ERROR: could not generate rdkit features for SMILES '{smi}'")
+                raise ValueError(
+                    f"ERROR: could not generate rdkit features for SMILES '{smi}'"
+                )
             else:
-                feat[i * self.feat_size:(i + 1) * self.feat_size] = features[1:]  # do not return the initial 'True'.
+                feat[i * self.feat_size : (i + 1) * self.feat_size] = features[
+                    1:
+                ]  # do not return the initial 'True'.
         return feat
 
     @property

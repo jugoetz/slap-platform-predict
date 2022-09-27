@@ -10,12 +10,13 @@ from rdkit.Chem import MolFromSmiles
 from rdkit.Chem.rdchem import Mol
 
 
-def build_mol_graph(mol: Union[str, Mol],
-                    atom_featurizer: callable,
-                    bond_featurizer: callable,
-                    global_featurizer: Optional[callable] = None,
-                    graph_type: str = "bond_edges",
-                    ) -> dgl.DGLGraph:
+def build_mol_graph(
+    mol: Union[str, Mol],
+    atom_featurizer: callable,
+    bond_featurizer: callable,
+    global_featurizer: Optional[callable] = None,
+    graph_type: str = "bond_edges",
+) -> dgl.DGLGraph:
     """
     Build a graph from a SMILES representing a molecule.
 
@@ -38,11 +39,12 @@ def build_mol_graph(mol: Union[str, Mol],
     if isinstance(mol, str):
         mol = MolFromSmiles(mol)
 
-    g = mol_to_bigraph(mol,
-                       node_featurizer=atom_featurizer,
-                       edge_featurizer=bond_featurizer,
-                       canonical_atom_order=False,
-                       )
+    g = mol_to_bigraph(
+        mol,
+        node_featurizer=atom_featurizer,
+        edge_featurizer=bond_featurizer,
+        canonical_atom_order=False,
+    )
 
     if global_featurizer:
         # could calculate some global feature here and attach it to the graph
@@ -59,12 +61,12 @@ def build_mol_graph(mol: Union[str, Mol],
 
 
 def build_cgr(
-        reaction_smiles: str,
-        atom_featurizer: callable,
-        bond_featurizer: callable,
-        global_featurizer: Optional[callable] = None,
-        mode: str = "reac_diff",
-        graph_type: str = "bond_edges",
+    reaction_smiles: str,
+    atom_featurizer: callable,
+    bond_featurizer: callable,
+    global_featurizer: Optional[callable] = None,
+    mode: str = "reac_diff",
+    graph_type: str = "bond_edges",
 ) -> dgl.DGLHeteroGraph:
     """
     Build CGR (condensed graph of reaction) for a reaction and featurize nodes.
@@ -109,9 +111,7 @@ def build_cgr(
         cgr_g = create_cgr(reactants, products, atom_featurizer, bond_featurizer, mode)
 
     except Exception as e:
-        raise ValueError(
-            f"Could not build CGR for reaction: {reaction_smiles}"
-        ) from e
+        raise ValueError(f"Could not build CGR for reaction: {reaction_smiles}") from e
 
     if graph_type == "bond_edges":
         return cgr_g
@@ -165,12 +165,19 @@ def bond_edges_to_bond_nodes(graph: dgl.DGLGraph) -> dgl.DGLHeteroGraph:
     # this way we span a "correlation grid" of bonds and all head to tail connections give True
     # The reverse bonds will be the ones that are symmetric with respect to the diagonal
     # by simply AND-NOTing the transpose we can get rid of these symmetric elements
-    bond_connection_matrix = start.expand(num_bonds, num_bonds) == end.expand(num_bonds, num_bonds).T
-    bond_leads_to_bond = torch.where(bond_connection_matrix & (~bond_connection_matrix.T))
+    bond_connection_matrix = (
+        start.expand(num_bonds, num_bonds) == end.expand(num_bonds, num_bonds).T
+    )
+    bond_leads_to_bond = torch.where(
+        bond_connection_matrix & (~bond_connection_matrix.T)
+    )
 
     bn_graph_data = {
         ("bond", "starts_at", "atom"): (bond, start),
-        ("atom", "starts", "bond"): (start, bond),  # reverse of the above, useful to control message-flow
+        ("atom", "starts", "bond"): (
+            start,
+            bond,
+        ),  # reverse of the above, useful to control message-flow
         ("bond", "leads_to", "bond"): bond_leads_to_bond,
         ("bond", "leads_to", "atom"): (bond, end),  # redundant, but convenient
     }
@@ -220,12 +227,13 @@ def get_atom_to_bond_maps(mol: Mol) -> Dict[Tuple[int, int], int]:
     return a2b
 
 
-def create_cgr(reactants: Mol,
-               products: Mol,
-               atom_featurizer: callable,
-               bond_featurizer: callable,
-               mode: str = "reac_diff"
-               ) -> dgl.DGLGraph:
+def create_cgr(
+    reactants: Mol,
+    products: Mol,
+    atom_featurizer: callable,
+    bond_featurizer: callable,
+    mode: str = "reac_diff",
+) -> dgl.DGLGraph:
     """
     Create the condensed graph of reaction (CGR) from a graph containing reactants and a graph containing products.
 
@@ -254,7 +262,19 @@ def create_cgr(reactants: Mol,
     product_a2b_mapping = get_atom_to_bond_maps(products)
 
     # get the relations of the reactant and product indices
-    r2p_atoms, ronly_atoms, ponly_atoms, r2p_bonds, ronly_bonds, ponly_bonds = atom_and_bond_mapping(reactant_atom_map_numbers, product_atom_map_numbers, reactant_a2b_mapping, product_a2b_mapping)
+    (
+        r2p_atoms,
+        ronly_atoms,
+        ponly_atoms,
+        r2p_bonds,
+        ronly_bonds,
+        ponly_bonds,
+    ) = atom_and_bond_mapping(
+        reactant_atom_map_numbers,
+        product_atom_map_numbers,
+        reactant_a2b_mapping,
+        product_a2b_mapping,
+    )
 
     reactant_b2a = {v: k for k, v in reactant_a2b_mapping.items()}
     product_b2a = {v: k for k, v in product_a2b_mapping.items()}
@@ -278,7 +298,9 @@ def create_cgr(reactants: Mol,
         node_dst_data.append(dst_atom)
         cgr_b2rp.append((r_b_idx, None))
     # the cgr_a2rp relation so far follows from the logic we used in the CGR construction
-    cgr_a2rp = sorted([(r_a, None) for r_a in ronly_atoms] + r2p_atoms, key=lambda x: x[0])
+    cgr_a2rp = sorted(
+        [(r_a, None) for r_a in ronly_atoms] + r2p_atoms, key=lambda x: x[0]
+    )
     # finally, we add edges that are only in products (i.e. formed bonds).
     # Here, we need to translate from product atom indices to reactant atom indices to stay consistent.
     # If the atom is not in reactants, we create a new (higher) index.
@@ -289,7 +311,9 @@ def create_cgr(reactants: Mol,
         except KeyError:
             # we assign a new atom index that is 1 higher than the index of any atom that is in reactants
             src_atom = 1 + max(node_src_data + node_dst_data)
-            cgr_a2rp.append((src_atom, src_atom_p))  # we need to add the newly created reactant atom index to our relations
+            cgr_a2rp.append(
+                (src_atom, src_atom_p)
+            )  # we need to add the newly created reactant atom index to our relations
         node_src_data.append(src_atom)
         try:  # exception if atom is not in reactants
             dst_atom = atoms_p2r[dst_atom_p]
@@ -297,7 +321,9 @@ def create_cgr(reactants: Mol,
             # we assign a new atom index that is 1 higher than the index of any atom that is in reactants
             # we already appended src_atom to node_src_data, so we have that covered as well
             dst_atom = 1 + max(node_src_data + node_dst_data)
-            cgr_a2rp.append((dst_atom, dst_atom_p))  # we need to add the newly created reactant atom index to our relations
+            cgr_a2rp.append(
+                (dst_atom, dst_atom_p)
+            )  # we need to add the newly created reactant atom index to our relations
         node_dst_data.append(dst_atom)
 
         cgr_b2rp.append((None, p_b_idx))
@@ -397,11 +423,13 @@ def create_cgr(reactants: Mol,
 
 
 def atom_and_bond_mapping(
-               reactant_atom_map_numbers: List[int],
-               product_atom_map_numbers: List[int],
-               reactant_a2b_mapping: Dict[Tuple[int, int], int],
-               product_a2b_mapping: Dict[Tuple[int, int], int],
-               ) -> Tuple[List[Tuple[int, int]], int, int, List[Tuple[int, int]], List[int], List[int]]:
+    reactant_atom_map_numbers: List[int],
+    product_atom_map_numbers: List[int],
+    reactant_a2b_mapping: Dict[Tuple[int, int], int],
+    product_a2b_mapping: Dict[Tuple[int, int], int],
+) -> Tuple[
+    List[Tuple[int, int]], int, int, List[Tuple[int, int]], List[int], List[int]
+]:
     """
     Map atoms and bonds between reactants and products
 
@@ -422,15 +450,31 @@ def atom_and_bond_mapping(
 
     """
 
-    reactant_atom_map_arr = np.array(reactant_atom_map_numbers, dtype=float)  # None -> np.nan
+    reactant_atom_map_arr = np.array(
+        reactant_atom_map_numbers, dtype=float
+    )  # None -> np.nan
     product_atom_map_arr = np.array(product_atom_map_numbers, dtype=float)
 
     # atoms
-    reac_atom_idx = np.where(~np.isnan(reactant_atom_map_arr))[0]  # indices of reactant atoms that end up in products
-    reac2prod_atom_idx = [(i, j) for i, j in zip(reac_atom_idx, find_indices(product_atom_map_arr, reactant_atom_map_arr[reac_atom_idx]))]  # tuples (reactant_atom_idx, corresponding_product_atom_idx)
-    reac2prod_atom_idx_map = {i: j for i, j in reac2prod_atom_idx}  # same as above, but as dict
-    reaconly_atom_idx = np.where(np.isnan(reactant_atom_map_arr))[0].tolist() # atom indices of reactant atoms not in products
-    prodonly_atom_idx = np.where(np.isnan(product_atom_map_arr))[0].tolist()  # atom indices of product atoms not in reactants
+    reac_atom_idx = np.where(~np.isnan(reactant_atom_map_arr))[
+        0
+    ]  # indices of reactant atoms that end up in products
+    reac2prod_atom_idx = [
+        (i, j)
+        for i, j in zip(
+            reac_atom_idx,
+            find_indices(product_atom_map_arr, reactant_atom_map_arr[reac_atom_idx]),
+        )
+    ]  # tuples (reactant_atom_idx, corresponding_product_atom_idx)
+    reac2prod_atom_idx_map = {
+        i: j for i, j in reac2prod_atom_idx
+    }  # same as above, but as dict
+    reaconly_atom_idx = np.where(np.isnan(reactant_atom_map_arr))[
+        0
+    ].tolist()  # atom indices of reactant atoms not in products
+    prodonly_atom_idx = np.where(np.isnan(product_atom_map_arr))[
+        0
+    ].tolist()  # atom indices of product atoms not in reactants
 
     # bonds
     reac2prod_bond_idx = []
@@ -438,7 +482,14 @@ def atom_and_bond_mapping(
     prodonly_bond_idx = []
     for k, v in reactant_a2b_mapping.items():
         try:  # KeyError if the bond is not in both products and reactants
-            reac2prod_bond_idx.append((v, product_a2b_mapping[(reac2prod_atom_idx_map[k[0]], reac2prod_atom_idx_map[k[1]])]))
+            reac2prod_bond_idx.append(
+                (
+                    v,
+                    product_a2b_mapping[
+                        (reac2prod_atom_idx_map[k[0]], reac2prod_atom_idx_map[k[1]])
+                    ],
+                )
+            )
         except KeyError:
             reaconly_bond_idx.append(v)
 
@@ -447,7 +498,14 @@ def atom_and_bond_mapping(
         if v not in conserved_prod_bonds:
             prodonly_bond_idx.append(v)
 
-    return reac2prod_atom_idx, reaconly_atom_idx, prodonly_atom_idx, reac2prod_bond_idx, reaconly_bond_idx, prodonly_bond_idx
+    return (
+        reac2prod_atom_idx,
+        reaconly_atom_idx,
+        prodonly_atom_idx,
+        reac2prod_bond_idx,
+        reaconly_bond_idx,
+        prodonly_bond_idx,
+    )
 
 
 def find_indices(arr, values):
@@ -460,5 +518,3 @@ def find_indices(arr, values):
     for v in values:
         idx.append(np.where(arr == v)[0])
     return np.concatenate(idx)
-
-

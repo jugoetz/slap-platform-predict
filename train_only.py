@@ -1,4 +1,10 @@
-"""Quick solution to train a model with known set of hyperparameters"""
+"""
+Train a single model on a single fold with known set of hyperparameters.
+Predict for a single test set.
+
+Note: This was a quick implementation that is now going to be turned into a permanent script.
+
+"""
 import argparse
 import os
 
@@ -6,10 +12,10 @@ import numpy as np
 import wandb
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 
 from src.data.dataloader import SLAPDataset, collate_fn
-from src.model.classifier import DMPNNModel, GCNModel, FFNModel
+from src.model.classifier import Classifier, load_model
 from src.util.configuration import get_config
 from src.util.definitions import LOG_DIR, DATA_ROOT, PROJECT_DIR
 from src.util.logging import generate_run_id
@@ -17,19 +23,20 @@ from src.util.logging import generate_run_id
 os.environ["WANDB_MODE"] = "offline"
 
 
-def train(data, hparams, trainer, run_id=None, save_model=True):
+def train(train_dl, val_dl, hparams, trainer, run_id=None, save_model=True):
     """
     Trains a model on given data with one set of hyperparameters.
 
     Args:
-        data (torch.utils.data.DataLoader): Training data
-        hparams (dict): Model hyperparameters
+        train_dl (torch.utils.data.DataLoader): Dataloader with training data.
+        val_dl (torch.utils.data.DataLoader): Dataloader with validation data.
+        hparams (dict): Model hyperparameters.
+        trainer (pytorch_lightning.Trainer): Trainer object.
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
         save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
 
     Returns:
-        dict: Dictionary of validation metrics and, if return_test_metrics is True, additionally test metrics
-        DMPNNModel: Trained model
+        Classifier: Trained model.
     """
     # generate run_id if None is passed
     if not run_id:
@@ -43,16 +50,10 @@ def train(data, hparams, trainer, run_id=None, save_model=True):
         config=hparams,
     )
 
-    # initialize model
-    if hparams["encoder"]["type"] == "D-MPNN":
-        model = DMPNNModel(**hparams)
-    elif hparams["encoder"]["type"] == "GCN":
-        model = GCNModel(**hparams)
-    else:
-        model = FFNModel(**hparams)
+    model = load_model(hparams)
 
     # run training
-    trainer.fit(model, train_dataloaders=data)
+    trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
     # optionally, save model weights
     if save_model:
         trainer.save_checkpoint(
@@ -68,8 +69,8 @@ def predict(model, data, trainer):
     Predicts on given data with given model.
 
     Args:
-        model (DMPNNModel): Trained model
-        data (torch.utils.data.DataLoader): Data to predict on
+        model (Classifier): Trained model
+        data (torch.utils.data.DataLoader): DataLoader with data for prediction.
 
     Returns:
         dict: Dictionary of predictions
@@ -80,60 +81,77 @@ def predict(model, data, trainer):
     return labels
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--config", type=str, default="config.yaml", help="Path to config file"
-)
-args = parser.parse_args()
+if __name__ == "__main__":
+    # argument parsing
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config", type=str, default="config.yaml", help="Path to config file"
+    )
+    args = parser.parse_args()
 
-config = get_config(args.config)
-# load data
-data = SLAPDataset(
-    name=config["data_name"],
-    raw_dir=DATA_ROOT,
-    reaction=config["reaction"],
-    smiles_columns=("SMILES",),
-    label_column="targets",
-    graph_type=config["graph_type"],
-    global_features=config["global_features"],
-    featurizers=config["featurizers"],
-)
+    config = get_config(args.config)
+    # load data
+    data = SLAPDataset(
+        name=config["data_name"],
+        raw_dir=DATA_ROOT,
+        reaction=config["reaction"],
+        smiles_columns=("SMILES",),
+        label_column="targets",
+        graph_type=config["graph_type"],
+        global_features=config["global_features"],
+        featurizers=config["featurizers"],
+    )
+    # split data into train and validation
+    train_size = int(0.9 * len(data))
+    val_size = len(data) - train_size
+    train_data, val_data = random_split(data, [train_size, val_size])
 
-dl = DataLoader(data, batch_size=32, shuffle=True, collate_fn=collate_fn)
+    # create dataloaders
+    train_dl = DataLoader(
+        train_data,
+        batch_size=32,
+        shuffle=True,
+        collate_fn=collate_fn,
+    )
 
-# update config with data processing specifics
-config["atom_feature_size"] = data.atom_feature_size
-config["bond_feature_size"] = data.bond_feature_size
-config["global_feature_size"] = data.global_feature_size
-trainer = pl.Trainer(
-    max_epochs=config["training"]["max_epochs"],
-    log_every_n_steps=1,
-    default_root_dir=PROJECT_DIR,
-    accelerator=config["accelerator"],
-)
-model = train(dl, config, trainer)
+    val_dl = DataLoader(
+        val_data,
+        batch_size=32,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
 
+    # update config with data processing specifics
+    config["atom_feature_size"] = data.atom_feature_size
+    config["bond_feature_size"] = data.bond_feature_size
+    config["global_feature_size"] = data.global_feature_size
+    trainer = pl.Trainer(
+        max_epochs=config["training"]["max_epochs"],
+        log_every_n_steps=1,
+        default_root_dir=PROJECT_DIR,
+        accelerator=config["accelerator"],
+    )
+    model = train(train_dl, val_dl, config, trainer)
 
-predict_data = SLAPDataset(
-    name="validation_plate_featurized_partial.csv",
-    raw_dir=DATA_ROOT,
-    reaction=config["reaction"],
-    smiles_columns=("reactionSMILES",),
-    label_column=None,
-    graph_type=config["graph_type"],
-    global_features=config["global_features"],
-    featurizers=config["featurizers"],
-)
+    predict_data = SLAPDataset(
+        name="validation_plate_featurized_partial.csv",
+        raw_dir=DATA_ROOT,
+        reaction=config["reaction"],
+        smiles_columns=("reactionSMILES",),
+        label_column=None,
+        graph_type=config["graph_type"],
+        global_features=config["global_features"],
+        featurizers=config["featurizers"],
+    )
 
+    predict_dl = DataLoader(
+        predict_data, batch_size=32, collate_fn=collate_fn, shuffle=False
+    )
 
-predict_dl = DataLoader(
-    predict_data, batch_size=32, collate_fn=collate_fn, shuffle=False
-)
+    predictions = predict(model, predict_dl, trainer)
+    # save predictions to text file
+    with open("predictions.txt", "w") as f:
+        for i in predictions.tolist():
+            f.write(str(i) + "\n")
 
-predictions = predict(model, predict_dl, trainer)
-# save predictions to text file
-with open("predictions.txt", "w") as f:
-    for i in predictions.tolist():
-        f.write(str(i) + "\n")
-
-print(predictions)
+    print(predictions)

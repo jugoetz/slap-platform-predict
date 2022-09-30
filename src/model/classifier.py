@@ -12,7 +12,17 @@ from src.layer.pooling import GlobalAttentionPooling, AvgPooling, SumPooling, Ma
 from src.layer.util import get_activation
 
 
-class ParentModel(pl.LightningModule):
+def load_model(hparams):
+    if hparams["encoder"]["type"] == "D-MPNN":
+        model = DMPNNModel(**hparams)
+    elif hparams["encoder"]["type"] == "GCN":
+        model = GCNModel(**hparams)
+    else:
+        model = FFNModel(**hparams)
+    return model
+
+
+class Classifier(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
         self.save_hyperparameters()
@@ -176,7 +186,7 @@ class ParentModel(pl.LightningModule):
         return loss
 
 
-class DMPNNModel(ParentModel):
+class DMPNNModel(Classifier):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -212,7 +222,7 @@ class DMPNNModel(ParentModel):
         return y_hat
 
 
-class GCNModel(ParentModel):
+class GCNModel(Classifier):
     """
     GCN model as implemented in DGL-Lifesci.
 
@@ -299,7 +309,7 @@ class GCNModel(ParentModel):
         return y_hat
 
 
-class FFNModel(ParentModel):
+class FFNModel(Classifier):
     """
     FFN-only model.
 

@@ -80,7 +80,7 @@ class SLAPDataset(DGLDataset):
             featurizers (str): Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop"}.
                 Default "dgllife".
             smiles_columns (tuple): Headers of columns in data file that contain SMILES strings
-            label_column (str): Header of the column in data file that contains the labels
+            label_column (str, optional): Header of the column in data file that contains the labels
             save_dir (str or path-like): Directory to save the processed data set. If None, `raw_dir` is used. Default None.
             force_reload (bool): Reload data set, ignoring cache. Default False.
             verbose (bool): Whether to provide verbose output

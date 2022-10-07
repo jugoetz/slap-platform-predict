@@ -22,6 +22,16 @@ def load_model(hparams):
     return model
 
 
+def load_trained_model(model_type, checkpoint_path):
+    if model_type == "D-MPNN":
+        model = DMPNNModel.load_from_checkpoint(checkpoint_path)
+    elif model_type == "GCN":
+        model = GCNModel.load_from_checkpoint(checkpoint_path)
+    else:
+        model = FFNModel.load_from_checkpoint(checkpoint_path)
+    return model
+
+
 class Classifier(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()

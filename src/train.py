@@ -23,28 +23,6 @@ from src.util.logging import generate_run_id, concatenate_to_dict_keys
 from src.data.dataloader import collate_fn
 
 
-def run_training(hparams, data, trainer, save_model=False):
-    """Convenience wrapper around train() to train a model on a single train-test split"""
-
-    # split data
-    data_train, data_val = train_test_split(
-        data, test_size=0.2, shuffle=True, random_state=42
-    )
-
-    # instantiate DataLoaders
-    train_dl = DataLoader(
-        data_train, batch_size=32, shuffle=True, collate_fn=collate_fn
-    )
-    val_dl = DataLoader(data_val, batch_size=32, collate_fn=collate_fn)
-
-    # run training
-    metrics, trained_model = train(
-        train_dl, val_dl, hparams, trainer, save_model=save_model
-    )
-
-    return metrics, trained_model
-
-
 def train(
     train,
     val,

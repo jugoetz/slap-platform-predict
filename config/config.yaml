@@ -39,4 +39,4 @@ optimizer:
     scheduler_name: exp_with_linear_warmup
 
 training:
-  max_epochs: 100
+  max_epochs: 10

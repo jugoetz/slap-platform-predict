@@ -11,7 +11,7 @@ def generate_run_id():
         str: id in the format "YYYY-MM-DD-HHMMSS_r" where r is a 6 digit random integer (100000-999999).
     """
     curr_datetime = datetime.datetime.now()
-    return f"{curr_datetime.date()}-{curr_datetime.hour}{curr_datetime.minute}{curr_datetime.second}_{random.randint(100000, 999999)}"
+    return f"{curr_datetime.date()}-{curr_datetime.hour:02d}{curr_datetime.minute:02d}{curr_datetime.second:02d}_{random.randint(100000, 999999)}"
 
 
 def concatenate_to_dict_keys(

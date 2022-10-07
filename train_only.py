@@ -8,22 +8,21 @@ Note: This was a quick implementation that is now going to be turned into a perm
 import argparse
 import os
 
-import numpy as np
 import wandb
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader, random_split
 
 from src.data.dataloader import SLAPDataset, collate_fn
-from src.model.classifier import Classifier, load_model
+from src.model.classifier import Classifier, load_model, load_trained_model
 from src.util.configuration import get_config
-from src.util.definitions import LOG_DIR, DATA_ROOT, PROJECT_DIR
+from src.util.definitions import LOG_DIR, DATA_ROOT, CKPT_DIR
 from src.util.logging import generate_run_id
 
 os.environ["WANDB_MODE"] = "offline"
 
 
-def train(train_dl, val_dl, hparams, trainer, run_id=None, save_model=True):
+def train(train_dl, val_dl, hparams, run_id=None, run_group=None):
     """
     Trains a model on given data with one set of hyperparameters.
 
@@ -31,22 +30,39 @@ def train(train_dl, val_dl, hparams, trainer, run_id=None, save_model=True):
         train_dl (torch.utils.data.DataLoader): Dataloader with training data.
         val_dl (torch.utils.data.DataLoader): Dataloader with validation data.
         hparams (dict): Model hyperparameters.
-        trainer (pytorch_lightning.Trainer): Trainer object.
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
-        save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
+        run_group (optional, str): Name to identify the run group. Default None.
 
     Returns:
-        Classifier: Trained model.
+        str: run_id that identifies the run/model
     """
     # generate run_id if None is passed
     if not run_id:
         run_id = generate_run_id()
 
+    # set run group name
+    if not run_group:
+        run_group = "single_run"
+
+    # set up trainer
+    callbacks = [
+        pl.callbacks.ModelCheckpoint(
+            monitor="val/loss", mode="min", dirpath=CKPT_DIR / run_id, filename="best"
+        )
+    ]
+    trainer = pl.Trainer(
+        max_epochs=config["training"]["max_epochs"],
+        log_every_n_steps=1,
+        default_root_dir=LOG_DIR / "checkpoints",
+        accelerator=config["accelerator"],
+        callbacks=callbacks,
+    )
+
     wandb.init(
         reinit=True,
         project="slap-gnn",
         name=run_id,
-        group="single_point_training",
+        group=run_group,
         config=hparams,
     )
 
@@ -54,17 +70,16 @@ def train(train_dl, val_dl, hparams, trainer, run_id=None, save_model=True):
 
     # run training
     trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
-    # optionally, save model weights
-    if save_model:
-        trainer.save_checkpoint(
-            filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True
-        )
+
+    # log metrics
+    metrics = {k: v for k, v in trainer.logged_metrics.items()}
+    wandb.log(metrics)
 
     wandb.finish()
-    return model
+    return run_id
 
 
-def predict(model, data, trainer):
+def predict(model, data):
     """
     Predicts on given data with given model.
 
@@ -75,7 +90,9 @@ def predict(model, data, trainer):
     Returns:
         dict: Dictionary of predictions
     """
-    probs = torch.cat(trainer.predict(model, dataloaders=data))
+    model.eval()
+    trainer = pl.Trainer(accelerator=config["accelerator"], logger=False)
+    probs = torch.cat(trainer.predict(model, data))
     # obtain labels from probabilities at 0.5 threshold
     labels = (probs > 0.5).int()
     return labels
@@ -125,13 +142,8 @@ if __name__ == "__main__":
     config["atom_feature_size"] = data.atom_feature_size
     config["bond_feature_size"] = data.bond_feature_size
     config["global_feature_size"] = data.global_feature_size
-    trainer = pl.Trainer(
-        max_epochs=config["training"]["max_epochs"],
-        log_every_n_steps=1,
-        default_root_dir=PROJECT_DIR,
-        accelerator=config["accelerator"],
-    )
-    model = train(train_dl, val_dl, config, trainer)
+
+    run_id = train(train_dl, val_dl, config)
 
     predict_data = SLAPDataset(
         name="validation_plate_featurized_partial.csv",
@@ -148,9 +160,16 @@ if __name__ == "__main__":
         predict_data, batch_size=32, collate_fn=collate_fn, shuffle=False
     )
 
-    predictions = predict(model, predict_dl, trainer)
+    model = load_trained_model(
+        config["encoder"]["type"], CKPT_DIR / run_id / "best.ckpt"
+    )
+
+    predictions = predict(model, predict_dl)
     # save predictions to text file
-    with open("predictions.txt", "w") as f:
+    pred_file = LOG_DIR / "predictions" / "run_id" / "predictions.txt"
+    if not pred_file.parent.exists():
+        pred_file.parent.mkdir(parents=True)
+    with open(pred_file, "w") as f:
         for i in predictions.tolist():
             f.write(str(i) + "\n")
 

@@ -1,91 +1,80 @@
 import pickle
-from copy import deepcopy
 
-import numpy as np
 import wandb
-from sklearn.metrics import (
-    accuracy_score,
-    precision_recall_fscore_support,
-    confusion_matrix,
-    roc_auc_score,
-    roc_curve,
-    precision_recall_curve,
-    log_loss,
-)
-from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 
-from src.model.classifier import DMPNNModel, GCNModel, FFNModel
-from src.util.definitions import LOG_DIR
+from src.evaluate import calculate_metrics
+from src.model.classifier import load_model
+from src.util.definitions import LOG_DIR, CKPT_DIR
 from src.util.logging import generate_run_id, concatenate_to_dict_keys
-from src.data.dataloader import collate_fn
 
 
 def train(
-    train,
-    val,
-    hparams,
-    trainer,
-    run_id=None,
-    group_run_id=None,
-    test=None,
-    save_model=False,
+    train_dl, val_dl, hparams, run_id=None, run_group=None, return_fold_metrics=False
 ):
     """
-    Trains a model on a given data split with one set of hyperparameters. By default, returns the evaluation metrics
-    on the validation set.
+    Trains a model on given data with one set of hyperparameters. Training and validation metrics (as specified in
+    the model class) are logged to wandb.
 
     Args:
-        train (torch.utils.data.DataLoader): Training data
-        val: (torch.utils.data.DataLoader): Validation data
-        hparams (dict): Model hyperparameters
+        train_dl (torch.utils.data.DataLoader): Dataloader with training data.
+        val_dl (torch.utils.data.DataLoader): Dataloader with validation data.
+        hparams (dict): Model hyperparameters.
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
-        group_run_id (optional, str): Id to identify the run group. Default None.
-        test: (dict, optional): Test data. Dictionary of dataloaders. If given, function will return test score(s).
-        save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
+        run_group (optional, str): Name to identify the run group. Default None.
+        return_fold_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
 
     Returns:
-        dict: Dictionary of validation metrics and, if return_test_metrics is True, additionally test metrics
-        DMPNNModel: Trained model
+        str: run_id that identifies the run/model
+        dict: Dictionary of training and validation metrics. Only returned if return_fold_metrics is True.
     """
     # generate run_id if None is passed
     if not run_id:
         run_id = generate_run_id()
 
-    wandb.init(
-        reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams
+    # set run group name
+    if not run_group:
+        run_group = "single_run"
+
+    # set up trainer
+    callbacks = [
+        pl.callbacks.ModelCheckpoint(
+            monitor="val/loss", mode="min", dirpath=CKPT_DIR / run_id, filename="best"
+        )
+    ]
+
+    trainer = pl.Trainer(
+        max_epochs=hparams["training"]["max_epochs"],
+        log_every_n_steps=1,
+        default_root_dir=LOG_DIR / "checkpoints",
+        accelerator=hparams["accelerator"],
+        callbacks=callbacks,
     )
 
-    # initialize model
-    if hparams["encoder"]["type"] == "D-MPNN":
-        model = DMPNNModel(**hparams)
-    elif hparams["encoder"]["type"] == "GCN":
-        model = GCNModel(**hparams)
-    else:
-        model = FFNModel(**hparams)
+    wandb.init(
+        reinit=True,
+        project="slap-gnn",
+        name=run_id,
+        group=run_group,
+        config=hparams,
+    )
+
+    model = load_model(hparams)
 
     # run training
-    trainer.fit(model, train_dataloaders=train, val_dataloaders=val)
+    trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
+
+    # log metrics
     metrics = {k: v for k, v in trainer.logged_metrics.items()}
-    # optionally, save model weights
-    if save_model:
-        trainer.save_checkpoint(
-            filepath=LOG_DIR / run_id / "model_checkpoints", weights_only=True
-        )
-
-    # optionally, run test set
-    if test:
-        for test_name, test_dl in test.items():
-            trainer.test(model, test_dl, ckpt_path="best")
-            for k, v in trainer.logged_metrics.items():
-                if k.startswith("test"):
-                    metrics[k.replace("test", test_name)] = v
-
     wandb.log(metrics)
+
     wandb.finish()
-    return metrics, model
+    if return_fold_metrics:
+        return run_id, metrics
+    else:
+        return run_id
 
 
 def train_sklearn(
@@ -181,42 +170,3 @@ def train_sklearn(
     wandb.log(return_metrics)
     wandb.finish()
     return return_metrics, model
-
-
-def calculate_metrics(y_true, y_pred, pred_proba=False, detailed=False):
-    """
-    Calculate a bunch of metrics for classification problems.
-    Args:
-        y_true: True labels
-        y_pred: Predicted labels or probabilities
-        pred_proba: Whether y_pred is a probability, or a label. If False, y_pred is assumed to be a label and
-            log_loss is not calculated. Defaults to False.
-        detailed: Whether to include ROC curve, PR curve, and confusion matrix. Defaults to False.
-
-    Returns:
-        dict: Dictionary of metrics
-
-    """
-
-    if pred_proba is True:
-        y_prob = deepcopy(y_pred)
-        y_pred = np.argmax(y_pred, axis=1)
-
-    metrics = {
-        k: v
-        for k, v in zip(
-            ["precision", "recall", "f1"],
-            precision_recall_fscore_support(
-                y_true, y_pred, average="binary", pos_label=1
-            ),
-        )
-    }
-    metrics["accuracy"] = accuracy_score(y_true, y_pred)
-    metrics["AUROC"] = roc_auc_score(y_true, y_pred)
-    metrics["loss"] = log_loss(y_true, y_prob) if pred_proba else None
-
-    if detailed is True:
-        metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred)
-        metrics["roc_curve"] = roc_curve(y_true, y_pred)
-        metrics["pr_curve"] = precision_recall_curve(y_true, y_pred)
-    return metrics

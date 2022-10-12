@@ -13,12 +13,14 @@ from src.layer.util import get_activation
 
 
 def load_model(hparams):
-    if hparams["encoder"]["type"] == "D-MPNN":
+    if hparams["name"] == "D-MPNN":
         model = DMPNNModel(**hparams)
-    elif hparams["encoder"]["type"] == "GCN":
+    elif hparams["name"] == "GCN":
         model = GCNModel(**hparams)
-    else:
+    elif hparams["name"] == "FFN":
         model = FFNModel(**hparams)
+    else:
+        raise ValueError(f"Model type {hparams['name']} not supported.")
     return model
 
 

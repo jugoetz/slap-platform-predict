@@ -1,71 +1,128 @@
-from src.data.dataloader import SLAPDataset
-from src.util.definitions import DATA_ROOT
-from src.cross_validation import cross_validate_predefined, cross_validate_sklearn
+from torch.utils.data import DataLoader
+
+from src.data.dataloader import SLAPDataset, collate_fn
+from src.util.definitions import LOG_DIR
+from src.util.io import walk_split_directory
+from src.cross_validation import cross_validate_sklearn, cross_validate
+from src.predict import predict
+from src.model.classifier import load_trained_model
 from src.hyperopt import optimize_hyperparameters_bayes
 
-
-def run_experiment(
-    config, hparam_optimization, hparam_config_path=None, hparam_n_iter=20
-):
-
+# TODO what do we do with test data?
+def run_training(args, hparams):
+    """
+    Handles training and hyperparameter optimization.
+    """
     # load data
     data = SLAPDataset(
-        name=config["data_name"],
-        raw_dir=DATA_ROOT,
-        reaction=config["reaction"],
-        smiles_columns=("SMILES",),
-        label_column="targets",
-        graph_type=config["graph_type"],
-        global_features=config["global_features"],
-        featurizers=config["featurizers"],
+        name=args.data_path.name,
+        raw_dir=args.data_path.parent,
+        reaction=hparams["encoder"]["reaction"],
+        smiles_columns=(args.smiles_column,),
+        label_column=args.label_column,
+        graph_type=hparams["encoder"]["graph_type"],
+        global_features=hparams["decoder"]["global_features"],
+        featurizers=hparams["encoder"]["featurizers"],
     )
 
     # update config with data processing specifics
-    config["atom_feature_size"] = data.atom_feature_size
-    config["bond_feature_size"] = data.bond_feature_size
-    config["global_feature_size"] = data.global_feature_size
+    hparams["atom_feature_size"] = data.atom_feature_size
+    hparams["bond_feature_size"] = data.bond_feature_size
+    hparams["global_feature_size"] = data.global_feature_size
 
     # define split index files
-    split_files = [
-        {
-            "train": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_train.csv",
-            "val": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_val.csv",
-            "test_0D": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_test_0D.csv",
-            "test_1D": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_test_1D.csv",
-            "test_2D": DATA_ROOT / "LCMS_split_763records" / f"fold{i}_test_2D.csv",
-        }
-        for i in range(5)
-    ]
+    if args.split_indices:
+        split_files = walk_split_directory(args.split_indices)
+        strategy = "predefined"
+    elif args.cv > 1:
+        strategy = "KFold"
+        split_files = None
+    elif args.train_size:
+        strategy = "random"
+        split_files = None
+    else:
+        raise ValueError("One of `--split_indices` or `--cv` must be given.")
 
-    if hparam_optimization:
+    # run either cv or hyperparameter optimization wrapping cv
+    if args.hparam_optimization:
         # run bayesian hparam optimization
         best_params, values, experiment = optimize_hyperparameters_bayes(
-            hparams=config,
             data=data,
-            split_files=split_files,
-            hparam_config_path=hparam_config_path,
-            n_iter=hparam_n_iter,
+            hparams=hparams,
+            hparam_config_path=args.hparam_config_path,
+            cv_parameters={
+                "strategy": strategy,
+                "split_files": split_files,
+                "n_folds": args.cv,
+                "train_size": args.train_size,
+            },
+            n_iter=args.hparam_n_iter,
         )
-        # print(best_params, values)
+        print(best_params, values)
 
     else:
         # run cross-validation with configured hparams
-        if config["decoder"]["type"] == "FFN":
-            aggregate_metrics, fold_metrics = cross_validate_predefined(
-                config,
+        if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
+            aggregate_metrics, fold_metrics = cross_validate(
                 data,
+                hparams,
+                strategy=strategy,
+                n_folds=args.cv,
+                train_size=args.train_size,
+                split_files=split_files,
+                return_fold_metrics=True,
+            )
+        elif hparams["name"] in ["LogisticRegression", "XGB"]:
+            aggregate_metrics, fold_metrics = cross_validate_sklearn(
+                data,
+                hparams,
                 split_files=split_files,
                 save_models=False,
                 return_fold_metrics=True,
             )
         else:
-            aggregate_metrics, fold_metrics = cross_validate_sklearn(
-                config,
-                data,
-                split_files=split_files,
-                save_models=False,
-                return_fold_metrics=True,
-            )
+            raise ValueError(f"Unknown model type {hparams['name']}")
         print(aggregate_metrics)
         print(fold_metrics)
+
     return
+
+
+def run_prediction(args, hparams):
+    """
+    Handles prediction from a trained model.
+    """
+
+    # load data
+    data = SLAPDataset(
+        name=args.data_path.name,
+        raw_dir=args.data_path.parent,
+        reaction=hparams["encoder"]["reaction"],
+        smiles_columns=(args.smiles_column,),
+        label_column=None,
+        graph_type=hparams["encoder"]["graph_type"],
+        global_features=hparams["decoder"]["global_features"],
+        featurizers=hparams["encoder"]["featurizers"],
+    )
+
+    # instantiate DataLoader
+    dl = DataLoader(data, batch_size=32, shuffle=False, collate_fn=collate_fn)
+
+    # load trained model
+    model = load_trained_model(hparams["name"], args.model_path)
+
+    # predict
+    predictions = predict(model, dl, hparams)
+
+    # save predictions to text file
+    pred_file = (
+        LOG_DIR / "predictions" / args.model_path.parent.name / "predictions.txt"
+    )
+    if not pred_file.parent.exists():
+        pred_file.parent.mkdir(parents=True)
+    with open(pred_file, "w") as f:
+        f.write("Prediction\n")
+        for i in predictions.tolist():
+            f.write(str(i) + "\n")
+
+    print(predictions)

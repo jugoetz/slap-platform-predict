@@ -5,4 +5,4 @@ DATA_ROOT = PROJECT_DIR / "data"
 CONFIG_ROOT = PROJECT_DIR / "config"
 LOG_DIR = PROJECT_DIR / "logs"
 CKPT_DIR = LOG_DIR / "checkpoints"
-LOG_DIR_ABS = str((LOG_DIR).absolute())
+LOG_DIR_ABS = str(LOG_DIR.absolute())

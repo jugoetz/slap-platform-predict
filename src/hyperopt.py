@@ -2,16 +2,16 @@ from copy import deepcopy
 
 from ax.service.managed_loop import optimize
 
-from src.cross_validation import cross_validate_predefined, cross_validate_sklearn
+from src.cross_validation import cross_validate, cross_validate_sklearn
 from src.util.io import get_hparam_bounds
 
 
 def optimize_hyperparameters_bayes(
-    hparams, data, split_files, hparam_config_path, n_iter=50
+    data, hparams, hparam_config_path, cv_parameters, n_iter=50
 ):
     def objective_function(parameterization):
         """
-        Wrapper around cross_validate_predefined() for Bayesian optimization with Ax.
+        Wrapper around cross_validate() for Bayesian optimization with Ax.
 
         Ax requires that this function takes only one argument, parameterization.
         Consequently, variables `hparams` and `data` need to be defined in outside the function.
@@ -47,18 +47,17 @@ def optimize_hyperparameters_bayes(
         )
         hparams_local["optimizer"]["lr_scheduler"]["lr_min"] = (
             hparams_local["optimizer"]["lr"] / 10
-        )  # we want min_lr to be 1/10th of max lr
+        )  # we want min_lr to be 1/10th of max lr  TODO should this be un-hardcoded?
         hparams_local["encoder"]["aggregation"] = parameterization.get(
             "aggregation", hparams["encoder"]["aggregation"]
         )
-        metrics = cross_validate_predefined(
+        metrics = cross_validate(
             hparams=hparams_local,
             data=data,
-            split_files=split_files,
-            save_models=False,
+            **cv_parameters,
             return_fold_metrics=False,
         )
-        # note that metrics returned from cross_validate_predefined are tensors, which ax cannot handle
+        # note that metrics returned from cross_validate are tensors, which ax cannot handle
         # thus we convert to float
         return {k: v.item() for k, v in metrics.items()}
 
@@ -91,9 +90,9 @@ def optimize_hyperparameters_bayes(
             raise ValueError("Unknown decoder type")
 
         metrics = cross_validate_sklearn(
-            hparams=hparams_local,
             data=data,
-            split_files=split_files,
+            hparams=hparams_local,
+            **cv_parameters,
             save_models=False,
             return_fold_metrics=False,
         )
@@ -103,7 +102,7 @@ def optimize_hyperparameters_bayes(
 
     bounds = get_hparam_bounds(hparam_config_path)
 
-    if hparams["decoder"]["type"] == "FFN":
+    if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
         obj_func = objective_function
     else:
         obj_func = objective_function_sklearn

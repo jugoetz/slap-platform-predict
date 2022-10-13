@@ -48,9 +48,6 @@ class SLAPDataset(DGLDataset):
 
     After processing, the data set will contain a featurized graph encoding of the molecule or reaction.
     If reaction=True, the encoding will be a condensed graph of reaction (CGR).
-
-    If rdkit_features is True, for each molecule, properties are calculated using rdkit. Note that this is mutually
-    exclusive with reaction=True.
     """
 
     def __init__(
@@ -64,7 +61,7 @@ class SLAPDataset(DGLDataset):
         graph_type: str = "bond_edges",
         featurizers: str = "dgllife",
         smiles_columns: tuple = ("SMILES",),
-        label_column: str = "label",
+        label_column: Optional[str] = "label",
         save_dir: Union[str, os.PathLike] = None,
         force_reload=False,
         verbose=True,

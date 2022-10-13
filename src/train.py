@@ -12,7 +12,13 @@ from src.util.logging import generate_run_id, concatenate_to_dict_keys
 
 
 def train(
-    train_dl, val_dl, hparams, run_id=None, run_group=None, return_fold_metrics=False
+    train_dl,
+    val_dl,
+    hparams,
+    test_dls=None,
+    run_id=None,
+    run_group=None,
+    return_fold_metrics=False,
 ):
     """
     Trains a model on given data with one set of hyperparameters. Training and validation metrics (as specified in
@@ -22,6 +28,7 @@ def train(
         train_dl (torch.utils.data.DataLoader): Dataloader with training data.
         val_dl (torch.utils.data.DataLoader): Dataloader with validation data.
         hparams (dict): Model hyperparameters.
+        test_dls (optional, dict): Dictionary of dataloaders with test data. If given, test metrics will be returned.
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
         run_group (optional, str): Name to identify the run group. Default None.
         return_fold_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
@@ -66,11 +73,20 @@ def train(
     # run training
     trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
-    # log metrics
+    # dict for logged metrics
     metrics = {k: v for k, v in trainer.logged_metrics.items()}
-    wandb.log(metrics)
 
+    # optionally, run test
+    if test_dls:
+        for test_name, test_dl in test_dls.items():
+            trainer.test(model, test_dl, ckpt_path="best")
+            for k, v in trainer.logged_metrics.items():
+                if k.startswith("test"):
+                    metrics[k.replace("test", test_name)] = v
+
+    wandb.log(metrics)
     wandb.finish()
+
     if return_fold_metrics:
         return run_id, metrics
     else:

@@ -8,7 +8,7 @@ from src.predict import predict
 from src.model.classifier import load_trained_model
 from src.hyperopt import optimize_hyperparameters_bayes
 
-# TODO what do we do with test data?
+
 def run_training(args, hparams):
     """
     Handles training and hyperparameter optimization.
@@ -74,6 +74,7 @@ def run_training(args, hparams):
                 train_size=args.train_size,
                 split_files=split_files,
                 return_fold_metrics=True,
+                run_test=args.run_test,
             )
         elif hparams["name"] in ["LogisticRegression", "XGB"]:
             aggregate_metrics, fold_metrics = cross_validate_sklearn(

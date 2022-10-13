@@ -74,6 +74,12 @@ if __name__ == "__main__":
         Fold indices start at 0 and increase monotonically.
         """,
     )
+    train_parser.add_argument(
+        "--run_test",
+        action="store_true",
+        help="Run test set evaluation after training. Only takes an effect if `--split_indices` is given and test set "
+        "is present in the split directory for this to have an effect.",
+    )
 
     # predict parser
     predict_parser = subparsers.add_parser("predict", parents=[parent_parser])

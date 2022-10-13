@@ -19,6 +19,7 @@ def cross_validate(
     train_size=0.9,
     split_files=None,
     return_fold_metrics=False,
+    run_test=False,
 ):
     """
     Trains a model under cross-validation. Returns the validation metrics' mean and std.
@@ -37,6 +38,7 @@ def cross_validate(
             with "test"
         return_fold_metrics (bool, optional): Whether to return full train and val metrics for all folds.
             Defaults to False.
+        run_test (bool, optional): Whether to run test set after training. Defaults to False.
 
     Returns:
         dict: Validation metrics, aggregated across folds (mean and standard deviation).
@@ -63,7 +65,7 @@ def cross_validate(
             {k: index_from_file(v) for k, v in fold.items()} for fold in split_files
         ]
     elif strategy == "random":
-        # create a random split with the given train_size
+        # create a single random split with the given train_size
         splitter = ShuffleSplit(n_splits=1, train_size=train_size, random_state=42)
         split_idx = [
             {"train": fold[0], "val": fold[1]}
@@ -89,17 +91,22 @@ def cross_validate(
             data_splitted["train"], batch_size=32, shuffle=True, collate_fn=collate_fn
         )
         val_dl = DataLoader(data_splitted["val"], batch_size=32, collate_fn=collate_fn)
-        test_dls = {
-            k: DataLoader(v, batch_size=32, collate_fn=collate_fn)
-            for k, v in data_splitted.items()
-            if k.startswith("test")
-        }
+        test_dls = (
+            {
+                k: DataLoader(v, batch_size=32, collate_fn=collate_fn)
+                for k, v in data_splitted.items()
+                if k.startswith("test")
+            }
+            if run_test
+            else None
+        )
 
         # train and validate model
         _, fold_metrics_val = train(
             train_dl,
             val_dl,
             hparams,
+            test_dls=test_dls,
             run_id=fold_run_id,
             run_group=cv_run_id,
             return_fold_metrics=True,

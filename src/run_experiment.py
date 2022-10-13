@@ -22,6 +22,7 @@ def run_training(args, hparams):
         label_column=args.label_column,
         graph_type=hparams["encoder"]["graph_type"],
         global_features=hparams["decoder"]["global_features"],
+        global_features_file=hparams["decoder"]["global_features_file"],
         featurizers=hparams["encoder"]["featurizers"],
     )
 
@@ -41,7 +42,9 @@ def run_training(args, hparams):
         strategy = "random"
         split_files = None
     else:
-        raise ValueError("One of `--split_indices` or `--cv` must be given.")
+        raise ValueError(
+            "One of `--split_indices`, `--cv`, or `--train_size` must be given."
+        )
 
     # run either cv or hyperparameter optimization wrapping cv
     if args.hparam_optimization:

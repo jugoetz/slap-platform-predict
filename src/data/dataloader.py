@@ -1,4 +1,5 @@
-from typing import List, Tuple, Optional
+import os
+from typing import List, Tuple, Optional, Union
 
 import dgl
 from dgl.data import DGLDataset
@@ -13,6 +14,7 @@ from src.data.featurizers import (
     RDKit2DGlobalFeaturizer,
     RDKitMorganFingerprinter,
     OneHotEncoder,
+    FromFileFeaturizer,
 )
 
 
@@ -53,37 +55,41 @@ class SLAPDataset(DGLDataset):
 
     def __init__(
         self,
-        name,
-        raw_dir=None,
-        url=None,
+        name: str,
+        raw_dir: Union[str, os.PathLike] = None,
+        url: str = None,
         reaction=False,
-        global_features=None,
-        graph_type="bond_edges",
-        featurizers="dgllife",
-        smiles_columns=("SMILES",),
-        label_column="label",
-        save_dir=None,
+        global_features: str = None,
+        global_features_file: Union[str, os.PathLike] = None,
+        graph_type: str = "bond_edges",
+        featurizers: str = "dgllife",
+        smiles_columns: tuple = ("SMILES",),
+        label_column: str = "label",
+        save_dir: Union[str, os.PathLike] = None,
         force_reload=False,
         verbose=True,
     ):
         """
         Args:
-            name (str): File name of the dataset
-            raw_dir (str or path-like): Directory containing data. Default None
-            url (str): Url to fetch data from. Default None
-            reaction (bool): Whether data is a reaction. If True, data will be loaded as CGR. Default False.
-            global_features (str, optional): Which global features to add. Options: {"RDKit", "FP", None}. Default None.
-            graph_type (str): Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
+            name: File name of the dataset
+            raw_dir: Directory containing data. Default None
+            url: Url to fetch data from. Default None
+            reaction: Whether data is a reaction. If True, data will be loaded as CGR. Default False.
+            global_features: Which global features to add.
+                Options: {"RDKit", "FP", "OHE", "fromFile", None}. Default None.
+            global_features_file: Path to file containing global features.
+                Only used with global_features=fromFile. Default None.
+            graph_type: Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
                     atoms and edges are bonds). These graphs are homogeneous. If "bond_nodes", bond-node graphs will be
                     formed (both atoms and bonds are nodes, edges represent their connectivity).
                     Options: {"bond_edges", "bond_nodes"}. Default "bond_edges".
-            featurizers (str): Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop"}.
+            featurizers: Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop"}.
                 Default "dgllife".
-            smiles_columns (tuple): Headers of columns in data file that contain SMILES strings
-            label_column (str, optional): Header of the column in data file that contains the labels
-            save_dir (str or path-like): Directory to save the processed data set. If None, `raw_dir` is used. Default None.
-            force_reload (bool): Reload data set, ignoring cache. Default False.
-            verbose (bool): Whether to provide verbose output
+            smiles_columns: Headers of columns in data file that contain SMILES strings
+            label_column: Header of the column in data file that contains the labels
+            save_dir: Directory to save the processed data set. If None, `raw_dir` is used. Default None.
+            force_reload: Reload data set, ignoring cache. Default False.
+            verbose: Whether to provide verbose output
         """
 
         self.reaction = reaction
@@ -111,6 +117,8 @@ class SLAPDataset(DGLDataset):
             self.global_featurizer = RDKitMorganFingerprinter(radius=6, n_bits=1024)
         elif global_features == "OHE":
             self.global_featurizer = OneHotEncoder()
+        elif global_features == "fromFile":
+            self.global_featurizer = FromFileFeaturizer(filename=global_features_file)
         else:
             self.global_featurizer = None
 

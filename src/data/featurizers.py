@@ -1,4 +1,7 @@
+import json
+import os
 from functools import partial
+from typing import Union
 
 import numpy as np
 import torch
@@ -389,3 +392,41 @@ def dummy_bond_featurizer(m: Mol):
     """For testing. Featurizes every bond with its index"""
     feats = [[b.GetIdx()] for b in m.GetBonds() for _ in range(2)]
     return {"e": torch.FloatTensor(feats)}
+
+
+class FromFileFeaturizer:
+    """
+    Featurizer that loads features from a file. The file should be a JSON file with the following format:
+    {
+        "smiles1": [feature1, feature2, ...],
+        "smiles2": [feature1, feature2, ...],
+        ...
+    }
+    """
+
+    def __init__(self, filename: Union[str, os.PathLike], **kwargs):
+        """
+        Args:
+            filename (str or os.Pathlike): Path to the file containing the features.
+        """
+        self.filename = filename
+        self._features = None
+
+    def process(self, *smiles):
+        """
+        Process one or more SMILES and return the features.
+        """
+        if self._features is None:
+            with open(self.filename, "r") as f:
+                self._features = json.load(f)
+
+        return np.array(
+            [self._features[canonicalize_smiles(smi)] for smi in smiles]
+        ).flatten()
+
+    @property
+    def feat_size(self) -> int:
+        if self._features is None:
+            with open(self.filename, "r") as f:
+                self._features = json.load(f)
+        return len(list(self._features.values())[0])

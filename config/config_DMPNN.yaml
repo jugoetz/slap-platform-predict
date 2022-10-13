@@ -1,5 +1,5 @@
 # common settings
-name: D-MPNN
+name: D-MPNN  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression}.
 accelerator: gpu  # usually cpu or gpu.
 
 # data
@@ -9,7 +9,6 @@ accelerator: gpu  # usually cpu or gpu.
 # model
 encoder:
   reaction: True
-  #type: D-MPNN  # str, options: {D-MPNN, GCN, global_features}. Note that global_features will ignore all other encoder configs.
   graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
   # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
   featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
@@ -21,8 +20,8 @@ encoder:
   activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
-  #type: FFN  # str, options: {FFN}.
-  global_features: None  # str, options: {"RDKit", "FP", "OHE", None}. Global features to include with the graphs.
+  global_features: fromFile  # str, options: {"RDKit", "FP", "OHE", "fromFile", None}. Global features to include with the graphs.
+  global_features_file: data/all_reactant_smiles_delfta_features.json  # str, path to file containing global features. Only used if global_features == "fromFile".
   hidden_size: 103  # int
   depth: 1  # int, number of hidden layers
   dropout_ratio: 9.19216555052358e-07  # float, probability of dropout

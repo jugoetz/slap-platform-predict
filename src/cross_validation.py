@@ -27,10 +27,9 @@ def cross_validate(
     Args:
         data (torch.utils.data.Dataset): Data set to run CV on.
         hparams (dict): Model configuration. See model for details.
-        strategy (str): CV strategy. Supported: {"KFold", "predefined"}. Defaults to "KFold".
-        n_folds (int): Number of folds. If 1, a 4:1 ShuffleSplit will be used regardless of strategy. Must be given for
-            strategy "KFold". Defaults to 0.
-        train_size (float): RelativeSize of training set for random split. Used only for strategy "random", otherwise
+        strategy (str): CV strategy. Supported: {"KFold", "predefined", "random"}. Defaults to "KFold".
+        n_folds (int): Number of folds. Must be > 2 for strategy "KFold". Defaults to 0.
+        train_size (float): Relative size of training set for random split. Used only for strategy "random", otherwise
             ignored. Defaults to 0.9.
         split_files (list): Splits to use. Expects a list of dictionaries, where each dictionary represents one fold
             e.g. [{"train": <path_to_train>, "val": <path_to_val>, "test": <path_to_test>}, ...]
@@ -102,18 +101,18 @@ def cross_validate(
         )
 
         # train and validate model
-        _, fold_metrics_val = train(
+        _, fold_metrics = train(
             train_dl,
             val_dl,
             hparams,
             test_dls=test_dls,
             run_id=fold_run_id,
             run_group=cv_run_id,
-            return_fold_metrics=True,
+            return_metrics=True,
         )
 
-        for k, v in fold_metrics_val.items():
-            metrics[k].append(v)
+        for k, v in fold_metrics.items():
+            metrics[k].append(v)  # append fold metrics to list
 
     # aggregate fold metrics
     # stack tensors, but remove underscore metrics (timestamp etc.)
@@ -130,7 +129,15 @@ def cross_validate(
 
 
 def cross_validate_sklearn(
-    data, hparams, split_files, save_models=False, return_fold_metrics=False, **kwargs
+    data,
+    hparams,
+    strategy="KFold",
+    n_folds=0,
+    train_size=0.9,
+    split_files=None,
+    return_fold_metrics=False,
+    run_test=False,
+    **kwargs,
 ):
     """
     Trains a sklearn model under cross-validation. Returns the validation metrics' mean/std and if test sets are given,
@@ -145,12 +152,17 @@ def cross_validate_sklearn(
     Args:
         data (torch.utils.data.Dataset): Data set to run CV on.
         hparams (dict): Model configuration. See model for details.
+        strategy (str): CV strategy. Supported: {"KFold", "predefined", "random"}. Defaults to "KFold".
+        n_folds (int): Number of folds. Must be > 2 for strategy "KFold". Defaults to 0.
+        train_size (float): Relative size of training set for random split. Used only for strategy "random", otherwise
+            ignored. Defaults to 0.9.
         split_files (list): Splits to use. Expects a list of dictionaries, where each dictionary represents one fold
             e.g. [{"train": <path_to_train>, "val": <path_to_val>, "test": <path_to_test>}, ...]
             the dictionaries must contain keys "train" and "val" and can contain an arbitrary number of keys starting
             with "test"
-        save_models (bool, optional): Whether to save a model checkpoint after training
-        return_fold_metrics (bool, optional): Whether to additionally return full train and val metrics for all folds
+        return_fold_metrics (bool, optional): Whether to additionally return full train and val metrics for all folds.
+            Defaults to False.
+        run_test (bool, optional): Whether to run test set after training. Defaults to False.
 
     Returns:
         dict: Validation metrics, aggregated across folds (mean and standard deviation).
@@ -160,31 +172,66 @@ def cross_validate_sklearn(
     # generate run_id
     cv_run_id = generate_run_id()
 
+    # set up splitter
+    if strategy == "KFold":
+        if n_folds < 2:
+            raise ValueError("n_folds must be > 1 for cross-validation.")
+        splitter = KFold(n_splits=n_folds, shuffle=True, random_state=42)
+        # instead of splitting the data itself we only generate the split indices here
+        # (for compatibility with predefined)
+        split_idx = [
+            {"train": fold[0], "val": fold[1]}
+            for fold in splitter.split(list(range(len(data))))
+        ]
+    elif strategy == "predefined":
+        # load indices from file
+        split_idx = [
+            {k: index_from_file(v) for k, v in fold.items()} for fold in split_files
+        ]
+    elif strategy == "random":
+        # create a single random split with the given train_size
+        splitter = ShuffleSplit(n_splits=1, train_size=train_size, random_state=42)
+        split_idx = [
+            {"train": fold[0], "val": fold[1]}
+            for fold in splitter.split(list(range(len(data))))
+        ]
+    else:
+        raise ValueError(f"Invalid strategy '{strategy}'")
+
     # dict to hold fold metrics
     metrics = defaultdict(lambda: np.zeros((len(split_files),)))
 
     # iterate folds
-    for i, fold in enumerate(split_files):
-        # each fold needs a new id
+    for i, fold in enumerate(split_idx):
+        if strategy == "ShuffleSplit" and i >= n_folds:
+            break  # exit loop for "endless" splitters like ShuffleSplit
+
+        # generate run_id
         fold_run_id = f"{cv_run_id}_fold{i}"
 
-        # load indices from file
-        idx = {k: index_from_file(v) for k, v in fold.items()}
-
         # instantiate Dataset splits instead of DataLoaders
-        data_splitted = {k: [data[i] for i in v] for k, v in idx.items()}
-        fold_metrics, model = train_sklearn(
-            data_splitted["train"],
-            data_splitted["val"],
+        data_splitted = {k: [data[i] for i in v] for k, v in fold.items()}
+        train_data = data_splitted["train"]
+        val_data = data_splitted["val"]
+        test_data = (
+            {k: v for k, v in data_splitted.items() if k.startswith("test")}
+            if run_test
+            else None
+        )
+
+        # train and validate model
+        _, fold_metrics = train_sklearn(
+            train_data,
+            val_data,
             hparams,
+            test=test_data,
             run_id=fold_run_id,
-            test={k: v for k, v in data_splitted.items() if k.startswith("test")},
-            save_model=save_models,
-            group_run_id=cv_run_id,
+            run_group=cv_run_id,
+            return_metrics=True,
         )
 
         for k, v in fold_metrics.items():
-            metrics[k][i] = v
+            metrics[k][i] = v  # insert fold metrics into array
 
     # aggregate fold metrics (aggregation is not possible for all of them. E.g. makes no sense to aggregate roc curves)
     aggregated_metrics = {}

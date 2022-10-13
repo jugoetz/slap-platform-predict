@@ -1,0 +1,17 @@
+# common settings
+name: LogisticRegression  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression}.
+accelerator: cpu  # usually cpu or gpu.
+
+# model
+encoder:
+    reaction: True
+    graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
+    featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
+
+decoder:
+  global_features: fromFile  # str, options: {"RDKit", "FP", "OHE", "fromFile", None}. Global features to include with the graphs.
+  global_features_file: data/all_reactant_smiles_delfta_features.json  # str, path to file containing global features. Only used if global_features == "fromFile".
+  penalty: l2  # str, options: {l1, l2, elasticnet}. Type of regularization to use.
+  solver: liblinear  # str, options: {lbfgs, liblinear, sag, saga, newton-cg}. Solver to use.
+  C: 1.0  # float, inverse of the regularization strength Logistic Regression (i.e. smaller = stronger regularization)
+  # l1_ratio: None  # float, ratio of L1 regularization to L2 regularization. Only used if penalty is elasticnet.

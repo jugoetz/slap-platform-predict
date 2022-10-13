@@ -75,17 +75,42 @@ def optimize_hyperparameters_bayes(
             tuple: Score and STD for the probed parameters
         """
         hparams_local = deepcopy(hparams)
-        if hparams_local["decoder"]["type"] == "LogisticRegression":
-            hparams_local["decoder"]["LogisticRegression"]["C"] = parameterization["C"]
-        elif hparams_local["decoder"]["type"] == "XGB":
-            hparams_local["decoder"]["XGB"]["reg_lambda"] = parameterization[
-                "reg_lambda"
-            ]
-            hparams_local["decoder"]["XGB"]["reg_alpha"] = parameterization["reg_alpha"]
-            hparams_local["decoder"]["XGB"]["gamma"] = parameterization["gamma"]
-            hparams_local["decoder"]["XGB"]["learning_rate"] = parameterization[
-                "learning_rate"
-            ]
+
+        if hparams_local["name"] == "LogisticRegression":
+
+            hparams_local["decoder"]["C"] = parameterization.get(
+                "C", hparams["decoder"]["C"]
+            )
+            hparams_local["decoder"]["penalty"] = parameterization.get(
+                "penalty", hparams["decoder"]["penalty"]
+            )
+
+        elif hparams_local["name"] == "XGB":
+
+            hparams_local["decoder"]["reg_lambda"] = parameterization.get(
+                "reg_lambda", hparams["decoder"]["reg_lambda"]
+            )
+
+            hparams_local["decoder"]["reg_alpha"] = parameterization.get(
+                "reg_alpha", hparams["decoder"]["reg_alpha"]
+            )
+
+            hparams_local["decoder"]["max_depth"] = parameterization.get(
+                "max_depth", hparams["decoder"]["max_depth"]
+            )
+
+            hparams_local["decoder"]["learning_rate"] = parameterization.get(
+                "learning_rate", hparams["decoder"]["learning_rate"]
+            )
+
+            hparams_local["decoder"]["gamma"] = parameterization.get(
+                "gamma", hparams["decoder"]["gamma"]
+            )
+
+            hparams_local["decoder"]["colsample_bytree"] = parameterization.get(
+                "colsample_bytree", hparams["decoder"]["colsample_bytree"]
+            )
+
         else:
             raise ValueError("Unknown decoder type")
 
@@ -93,7 +118,6 @@ def optimize_hyperparameters_bayes(
             data=data,
             hparams=hparams_local,
             **cv_parameters,
-            save_models=False,
             return_fold_metrics=False,
         )
         # note that metrics returned from cross_validate_predefined are tensors, which ax cannot handle
@@ -114,4 +138,7 @@ def optimize_hyperparameters_bayes(
         total_trials=n_iter,
         minimize=True,
     )
+
+    # todo refit with best parameters and return the metrics from that
+
     return best_parameters, values, experiment

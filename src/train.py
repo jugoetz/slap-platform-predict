@@ -2,11 +2,10 @@ import pickle
 
 import wandb
 import pytorch_lightning as pl
-from sklearn.linear_model import LogisticRegression
-from xgboost import XGBClassifier
 
 from src.evaluate import calculate_metrics
 from src.model.classifier import load_model
+from src.model.sklearnmodels import load_sklearn_model
 from src.util.definitions import LOG_DIR, CKPT_DIR
 from src.util.logging import generate_run_id, concatenate_to_dict_keys
 
@@ -18,24 +17,26 @@ def train(
     test_dls=None,
     run_id=None,
     run_group=None,
-    return_fold_metrics=False,
+    return_metrics=False,
 ):
     """
-    Trains a model on given data with one set of hyperparameters. Training and validation metrics (as specified in
-    the model class) are logged to wandb.
+    Trains a model on given data with one set of hyperparameters. Training, validation, and, optionally, test metrics
+    (as specified in the model class) are logged to wandb.
 
     Args:
         train_dl (torch.utils.data.DataLoader): Dataloader with training data.
         val_dl (torch.utils.data.DataLoader): Dataloader with validation data.
         hparams (dict): Model hyperparameters.
         test_dls (optional, dict): Dictionary of dataloaders with test data. If given, test metrics will be returned.
-        run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
+        run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current
+            datetime. Defaults to None.
         run_group (optional, str): Name to identify the run group. Default None.
-        return_fold_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
+        return_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
 
     Returns:
         str: run_id that identifies the run/model
-        dict: Dictionary of training and validation metrics. Only returned if return_fold_metrics is True.
+        dict: Dictionary of training and validation (+ optionally test) metrics.
+            Only returned if return_metrics is True.
     """
     # generate run_id if None is passed
     if not run_id:
@@ -87,14 +88,14 @@ def train(
     wandb.log(metrics)
     wandb.finish()
 
-    if return_fold_metrics:
+    if return_metrics:
         return run_id, metrics
     else:
         return run_id
 
 
 def train_sklearn(
-    train, val, hparams, run_id=None, group_run_id=None, test=None, save_model=False
+    train, val, hparams, test=None, run_id=None, run_group=None, return_metrics=False
 ):
     """
     Trains a sklearn model on a given data split with one set of hyperparameters. By default, returns the evaluation
@@ -103,86 +104,86 @@ def train_sklearn(
     Args:
         train (torch.utils.data.DataLoader): Training data
         val: (torch.utils.data.DataLoader): Validation data
-        test: (Union[DataLoader, Dict[torch.utils.data.DataLoader]], optional): Test data. If data is given, test metrics will be returned.
         hparams (dict): Model hyperparameters
+        test: (Union[DataLoader, Dict[torch.utils.data.DataLoader]], optional): Test data. If data is given, test metrics will be returned.
         run_id (optional, str): Unique id to identify the run. If None, will generate an ID containing the current datetime.
             Defaults to None.
-        group_run_id (optional, str): Id to identify the run group. Default None.
-        save_model (bool): Whether to save the trained model weights to disk. Defaults to False.
+        run_group (optional, str): Id to identify the run group. Default None.
+        return_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
 
     Returns:
-        dict: Dictionary of validation metrics and, test DataLoader(s) are passed, additionally test metrics
-        Model: Trained model
+        str: run_id that identifies the run/model
+        dict: Dictionary of training and validation (+ optionally test) metrics.
+            Only returned if return_metrics is True.
     """
     # generate run_id if None is passed
     if not run_id:
         run_id = generate_run_id()
 
+    # set run group name
+    if not run_group:
+        run_group = "single_run"
+
     wandb.init(
-        reinit=True, project="slap-gnn", name=run_id, group=group_run_id, config=hparams
+        reinit=True,
+        project="slap-gnn",
+        name=run_id,
+        group=run_group,
+        config=hparams,
     )
 
     # initialize model
-    if hparams["decoder"]["type"] == "LogisticRegression":
-        model = LogisticRegression(**hparams["decoder"]["LogisticRegression"])
-    elif hparams["decoder"]["type"] == "XGB":
-        model = XGBClassifier(**hparams["decoder"]["XGB"])
-    else:
-        raise ValueError("Invalid model type")
+    model = load_sklearn_model(hparams)
 
     # get training and validation data
     train_graphs, train_global_features, train_labels = map(list, zip(*train))
     val_graphs, val_global_features, val_labels = map(list, zip(*val))
 
-    if hparams["encoder"]["type"] == "global_features":
-        X_train = train_global_features
-        X_val = val_global_features
-    else:
-        raise ValueError("Invalid encoder type for sklearn model")
-
     # run training
-    model.fit(X_train, train_labels)
+    model.fit(train_global_features, train_labels)
 
     # evaluate on training set
-    train_pred = model.predict_proba(X_train)
+    train_pred = model.predict_proba(train_global_features)
     train_metrics = concatenate_to_dict_keys(
         calculate_metrics(train_labels, train_pred, pred_proba=True), prefix="train/"
     )
 
     # evaluate on validation set
-    val_pred = model.predict_proba(X_val)
+    val_pred = model.predict_proba(val_global_features)
     val_metrics = concatenate_to_dict_keys(
         calculate_metrics(val_labels, val_pred, pred_proba=True), prefix="val/"
     )
 
-    # optionally, save model
-    if save_model:
-        with open(LOG_DIR / run_id / "model_checkpoints" / "model.pkl", "wb") as f:
-            pickle.dump(model, f)
+    # logging metrics
+    metrics = {}
+    metrics.update(train_metrics)
+    metrics.update(val_metrics)
+
+    # save model
+    model_path = CKPT_DIR / run_id / "model.pkl"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(model_path, "wb") as f:
+        pickle.dump(model, f)
 
     # optionally, run test set
     if test:
         test_metrics = {}
         for k, v in test.items():
             test_graphs, test_global_features, test_labels = map(list, zip(*v))
-            if hparams["encoder"]["type"] == "global_features":
-                X_test = test_global_features
-            else:
-                raise ValueError("Invalid encoder type for sklearn model")
-            test_pred = model.predict_proba(X_test)
+            test_pred = model.predict_proba(test_global_features)
             test_metrics.update(
                 concatenate_to_dict_keys(
                     calculate_metrics(test_labels, test_pred, pred_proba=True), f"{k}/"
                 )
             )
 
-    return_metrics = {}
-    return_metrics.update(train_metrics)
-    return_metrics.update(val_metrics)
+        # add to logging metrics
+        metrics.update(test_metrics)
 
-    if test:
-        return_metrics.update(test_metrics)
-
-    wandb.log(return_metrics)
+    wandb.log(metrics)
     wandb.finish()
-    return return_metrics, model
+
+    if return_metrics:
+        return run_id, metrics
+    else:
+        return run_id

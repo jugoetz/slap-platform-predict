@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/run.py" />
-    <option name="PARAMETERS" value="train --config config/config_DMPNN.yaml --data_path data/slap_dataset_reactions.csv --split_indices data/LCMS_split_763records --run_test" />
+    <option name="PARAMETERS" value="train --config config/config_XGB.yaml --data_path data/slap_dataset_reactions.csv --split_indices data/LCMS_split_763records --run_test" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

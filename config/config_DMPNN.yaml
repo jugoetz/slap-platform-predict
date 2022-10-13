@@ -2,10 +2,6 @@
 name: D-MPNN  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression}.
 accelerator: gpu  # usually cpu or gpu.
 
-# data
-
-#data_name: slap_dataset_reactions.csv
-
 # model
 encoder:
   reaction: True

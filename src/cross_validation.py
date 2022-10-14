@@ -20,6 +20,8 @@ def cross_validate(
     split_files=None,
     return_fold_metrics=False,
     run_test=False,
+    tags=None,
+    job_type=None,
 ):
     """
     Trains a model under cross-validation. Returns the validation metrics' mean and std.
@@ -38,6 +40,8 @@ def cross_validate(
         return_fold_metrics (bool, optional): Whether to return full train and val metrics for all folds.
             Defaults to False.
         run_test (bool, optional): Whether to run test set after training. Defaults to False.
+        tags (list, optional): List of tags to add to the run in wandb. Defaults to None.
+        job_type (str, optional): Type of job for wandb. Defaults to None.
 
     Returns:
         dict: Validation metrics, aggregated across folds (mean and standard deviation).
@@ -109,6 +113,8 @@ def cross_validate(
             run_id=fold_run_id,
             run_group=cv_run_id,
             return_metrics=True,
+            tags=tags,
+            job_type=job_type,
         )
 
         for k, v in fold_metrics.items():
@@ -137,6 +143,8 @@ def cross_validate_sklearn(
     split_files=None,
     return_fold_metrics=False,
     run_test=False,
+    tags=None,
+    job_type=None,
     **kwargs,
 ):
     """
@@ -163,6 +171,8 @@ def cross_validate_sklearn(
         return_fold_metrics (bool, optional): Whether to additionally return full train and val metrics for all folds.
             Defaults to False.
         run_test (bool, optional): Whether to run test set after training. Defaults to False.
+        tags (list, optional): List of tags to add to the run in wandb. Defaults to None.
+        job_type (str, optional): Type of job for wandb. Defaults to None.
 
     Returns:
         dict: Validation metrics, aggregated across folds (mean and standard deviation).
@@ -228,6 +238,8 @@ def cross_validate_sklearn(
             run_id=fold_run_id,
             run_group=cv_run_id,
             return_metrics=True,
+            tags=tags,
+            job_type=job_type,
         )
 
         for k, v in fold_metrics.items():

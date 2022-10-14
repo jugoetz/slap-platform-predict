@@ -18,6 +18,8 @@ def train(
     run_id=None,
     run_group=None,
     return_metrics=False,
+    tags=None,
+    job_type=None,
 ):
     """
     Trains a model on given data with one set of hyperparameters. Training, validation, and, optionally, test metrics
@@ -32,6 +34,8 @@ def train(
             datetime. Defaults to None.
         run_group (optional, str): Name to identify the run group. Default None.
         return_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
+        tags (list, optional): List of tags to add to the run in wandb. Defaults to None.
+        job_type (str, optional): Type of job for wandb. Defaults to None.
 
     Returns:
         str: run_id that identifies the run/model
@@ -67,6 +71,8 @@ def train(
         name=run_id,
         group=run_group,
         config=hparams,
+        tags=tags,
+        job_type=job_type,
     )
 
     model = load_model(hparams)
@@ -95,7 +101,15 @@ def train(
 
 
 def train_sklearn(
-    train, val, hparams, test=None, run_id=None, run_group=None, return_metrics=False
+    train,
+    val,
+    hparams,
+    test=None,
+    run_id=None,
+    run_group=None,
+    return_metrics=False,
+    tags=None,
+    job_type=None,
 ):
     """
     Trains a sklearn model on a given data split with one set of hyperparameters. By default, returns the evaluation
@@ -110,6 +124,8 @@ def train_sklearn(
             Defaults to None.
         run_group (optional, str): Id to identify the run group. Default None.
         return_metrics (bool, optional): Whether to return train and val metrics. Defaults to False.
+        tags (list, optional): List of tags to add to the run in wandb. Defaults to None.
+        job_type (str, optional): Type of job for wandb. Defaults to None.
 
     Returns:
         str: run_id that identifies the run/model
@@ -130,6 +146,8 @@ def train_sklearn(
         name=run_id,
         group=run_group,
         config=hparams,
+        tags=tags,
+        job_type=job_type,
     )
 
     # initialize model

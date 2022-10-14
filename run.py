@@ -26,6 +26,13 @@ if __name__ == "__main__":
         default="SMILES",
         help="Name of the column containing SMILES strings to use as input.",
     )
+    parent_parser.add_argument(
+        "--tags",
+        type=str,
+        nargs="+",
+        default=None,
+        help="List of tags to add to the run in wandb.",
+    )
 
     # train parser
     train_parser = subparsers.add_parser("train", parents=[parent_parser])

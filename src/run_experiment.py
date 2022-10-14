@@ -58,6 +58,8 @@ def run_training(args, hparams):
                 "split_files": split_files,
                 "n_folds": args.cv,
                 "train_size": args.train_size,
+                "tags": args.tags,
+                "job_type": "hparam_optimization",
             },
             n_iter=args.hparam_n_iter,
         )
@@ -73,6 +75,8 @@ def run_training(args, hparams):
             split_files=split_files,
             return_fold_metrics=True,
             run_test=args.run_test,
+            tags=args.tags,
+            job_type="training",
         )
     elif hparams["name"] in ["LogisticRegression", "XGB"]:
         aggregate_metrics, fold_metrics = cross_validate_sklearn(
@@ -84,6 +88,8 @@ def run_training(args, hparams):
             split_files=split_files,
             return_fold_metrics=True,
             run_test=args.run_test,
+            tags=args.tags,
+            job_type="training",
         )
     else:
         raise ValueError(f"Unknown model type {hparams['name']}")

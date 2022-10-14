@@ -46,10 +46,10 @@ def run_training(args, hparams):
             "One of `--split_indices`, `--cv`, or `--train_size` must be given."
         )
 
-    # run either cv or hyperparameter optimization wrapping cv
+    # run hyperparameter optimization if requested
     if args.hparam_optimization:
         # run bayesian hparam optimization
-        best_params, values, experiment = optimize_hyperparameters_bayes(
+        hparams = optimize_hyperparameters_bayes(
             data=data,
             hparams=hparams,
             hparam_config_path=args.hparam_config_path,
@@ -61,36 +61,37 @@ def run_training(args, hparams):
             },
             n_iter=args.hparam_n_iter,
         )
-        print(best_params, values)
 
+    # run cross-validation with preconfigured or optimized hparams
+    if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
+        aggregate_metrics, fold_metrics = cross_validate(
+            data,
+            hparams,
+            strategy=strategy,
+            n_folds=args.cv,
+            train_size=args.train_size,
+            split_files=split_files,
+            return_fold_metrics=True,
+            run_test=args.run_test,
+        )
+    elif hparams["name"] in ["LogisticRegression", "XGB"]:
+        aggregate_metrics, fold_metrics = cross_validate_sklearn(
+            data,
+            hparams,
+            strategy=strategy,
+            n_folds=args.cv,
+            train_size=args.train_size,
+            split_files=split_files,
+            return_fold_metrics=True,
+            run_test=args.run_test,
+        )
     else:
-        # run cross-validation with configured hparams
-        if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
-            aggregate_metrics, fold_metrics = cross_validate(
-                data,
-                hparams,
-                strategy=strategy,
-                n_folds=args.cv,
-                train_size=args.train_size,
-                split_files=split_files,
-                return_fold_metrics=True,
-                run_test=args.run_test,
-            )
-        elif hparams["name"] in ["LogisticRegression", "XGB"]:
-            aggregate_metrics, fold_metrics = cross_validate_sklearn(
-                data,
-                hparams,
-                strategy=strategy,
-                n_folds=args.cv,
-                train_size=args.train_size,
-                split_files=split_files,
-                return_fold_metrics=True,
-                run_test=args.run_test,
-            )
-        else:
-            raise ValueError(f"Unknown model type {hparams['name']}")
-        print(aggregate_metrics)
-        print(fold_metrics)
+        raise ValueError(f"Unknown model type {hparams['name']}")
+    if args.hparam_optimization:
+        print(f"Optimized hyperparameters: {hparams}")
+    print(f"Aggregate metrics:")
+    for k, v in aggregate_metrics.items():
+        print(f"{k}: {v}")
 
     return
 
@@ -132,4 +133,7 @@ def run_prediction(args, hparams):
         for i in predictions.tolist():
             f.write(str(i) + "\n")
 
+    print("Predicted values:")
     print(predictions)
+
+    return

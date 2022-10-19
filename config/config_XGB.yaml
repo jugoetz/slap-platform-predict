@@ -9,8 +9,8 @@ encoder:
     featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 decoder:
-  global_features: fromFile  # str, options: {"RDKit", "FP", "OHE", "fromFile", None}. Global features to include with the graphs.
-  global_features_file: data/all_reactant_smiles_delfta_features.json  # str, path to file containing global features. Only used if global_features == "fromFile".
+  global_features: FP  # str, options: {"RDKit", "FP", "OHE", "fromFile", None}. Global features to include with the graphs.
+  global_features_file: None #data/all_reactant_smiles_delfta_features.json  # str, path to file containing global features. Only used if global_features == "fromFile".
   n_estimators: 100  # int, number of estimators for XGBoost
   learning_rate: 0.1  # float, learning rate for XGBoost
   max_depth: 6  # int, max depth for XGBoost

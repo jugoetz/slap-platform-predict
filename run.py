@@ -34,6 +34,19 @@ if __name__ == "__main__":
         help="List of tags to add to the run in wandb.",
     )
 
+    parent_parser.add_argument(
+        "--global_features",
+        type=str,
+        choices=["RDKit", "FP", "OHE", "fromFile", "None"],
+        help="Which global features to add. Options: {'RDKit', 'FP', 'OHE', 'fromFile', 'None'}.",
+    )
+
+    parent_parser.add_argument(
+        "--global_features_file",
+        type=pathlib.Path,
+        help="Path to file containing global features. Required if global_features='fromFile'.",
+    )
+
     # train parser
     train_parser = subparsers.add_parser("train", parents=[parent_parser])
     train_parser.set_defaults(func=run_training)
@@ -102,5 +115,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     hparams = get_config(args.config)
+
+    # overwrite some typically changed hparams with command line arguments
+    # slighlty unintuitive: Checking for None works here because argparse will parse "None" as a string, which makes it not None
+    if args.global_features:
+        hparams["decoder"]["global_features"] = args.global_features
+    if args.global_features_file:
+        hparams["decoder"]["global_features_file"] = args.global_features_file
 
     args.func(args, hparams)

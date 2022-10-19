@@ -46,8 +46,10 @@ def run_training(args, hparams):
             "One of `--split_indices`, `--cv`, or `--train_size` must be given."
         )
 
+    job_type = None
     # run hyperparameter optimization if requested
     if args.hparam_optimization:
+        job_type = "hparam_optimization"
         # run bayesian hparam optimization
         hparams = optimize_hyperparameters_bayes(
             data=data,
@@ -59,12 +61,17 @@ def run_training(args, hparams):
                 "n_folds": args.cv,
                 "train_size": args.train_size,
                 "tags": args.tags,
-                "job_type": "hparam_optimization",
+                "job_type": job_type,
             },
             n_iter=args.hparam_n_iter,
         )
 
     # run cross-validation with preconfigured or optimized hparams
+    if job_type is "hparam_optimization":
+        job_type = "hparam_best"
+    else:
+        job_type = "training"
+
     if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
         aggregate_metrics, fold_metrics = cross_validate(
             data,
@@ -76,7 +83,7 @@ def run_training(args, hparams):
             return_fold_metrics=True,
             run_test=args.run_test,
             tags=args.tags,
-            job_type="training",
+            job_type=job_type,
         )
     elif hparams["name"] in ["LogisticRegression", "XGB"]:
         aggregate_metrics, fold_metrics = cross_validate_sklearn(
@@ -89,7 +96,7 @@ def run_training(args, hparams):
             return_fold_metrics=True,
             run_test=args.run_test,
             tags=args.tags,
-            job_type="training",
+            job_type=job_type,
         )
     else:
         raise ValueError(f"Unknown model type {hparams['name']}")

@@ -10,3 +10,6 @@ wandb/
 data/*
 !data/example_split
 !data/example_dataset.csv
+
+# nq log files
+,*

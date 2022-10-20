@@ -5,12 +5,3 @@
   type: range
   value_type: float
   log_scale: True
-
-#- values:
-#  - "attention"
-#  - "mean"
-#  - "max"
-#  - "sum"
-#  name: aggregation
-#  type: choice
-#  value_type: str

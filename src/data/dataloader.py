@@ -108,7 +108,7 @@ class SLAPDataset(DGLDataset):
             self.bond_featurizer = ChempropBondFeaturizer(bond_data_field="e")
         elif featurizers == "custom":
             self.atom_featurizer = SLAPAtomFeaturizer(atom_data_field="x")
-            self.bond_featurizer = SLAPBondFeaturizer(bond_data_field="x")
+            self.bond_featurizer = SLAPBondFeaturizer(bond_data_field="e")
         else:
             raise ValueError("Unexpected value for 'featurizers'")
 

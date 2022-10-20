@@ -73,40 +73,44 @@ class SLAPAtomFeaturizer(BaseAtomFeaturizer):
             "I",
         ]
 
-        featurizer_funcs = {atom_data_field: ConcatFeaturizer(
-            [
-                partial(
-                    atom_type_one_hot,
-                    allowable_set=allowable_atoms,
-                    encode_unknown=True,
-                ),
-                partial(
-                    atom_total_degree_one_hot,
-                    allowable_set=list(range(6)),
-                    encode_unknown=False,
-                ),
-                partial(
-                    atom_formal_charge_one_hot,
-                    allowable_set=[-1, 0, 1],
-                    encode_unknown=True,
-                ),
-                partial(
-                    atom_total_num_H_one_hot,
-                    allowable_set=list(range(5)),
-                    encode_unknown=False,
-                ),
-                partial(atom_hybridization_one_hot,
+        featurizer_funcs = {
+            atom_data_field: ConcatFeaturizer(
+                [
+                    partial(
+                        atom_type_one_hot,
+                        allowable_set=allowable_atoms,
+                        encode_unknown=True,
+                    ),
+                    partial(
+                        atom_total_degree_one_hot,
+                        allowable_set=list(range(6)),
+                        encode_unknown=False,
+                    ),
+                    partial(
+                        atom_formal_charge_one_hot,
+                        allowable_set=[-1, 0, 1],
+                        encode_unknown=True,
+                    ),
+                    partial(
+                        atom_total_num_H_one_hot,
+                        allowable_set=list(range(5)),
+                        encode_unknown=False,
+                    ),
+                    partial(
+                        atom_hybridization_one_hot,
                         allowable_set=[
                             Chem.rdchem.HybridizationType.S,
                             Chem.rdchem.HybridizationType.SP,
-                         Chem.rdchem.HybridizationType.SP2,
-                         Chem.rdchem.HybridizationType.SP3,
-                    ],
-                        encode_unknown=True),
-                atom_is_aromatic,
-                atom_is_in_ring,
-            ]
-        )}
+                            Chem.rdchem.HybridizationType.SP2,
+                            Chem.rdchem.HybridizationType.SP3,
+                        ],
+                        encode_unknown=True,
+                    ),
+                    atom_is_aromatic,
+                    atom_is_in_ring,
+                ]
+            )
+        }
 
         super().__init__(featurizer_funcs=featurizer_funcs)
 
@@ -134,16 +138,15 @@ class SLAPBondFeaturizer(BaseBondFeaturizer):
 
     def __init__(self, bond_data_field="e"):
         featurizer_funcs = {
-                bond_data_field: ConcatFeaturizer(
-                    [
-
-                        bond_type_one_hot,
-                        bond_is_conjugated,
-                        bond_is_in_ring,
-                        bond_stereo_one_hot,
-                    ]
-                )
-            },
+            bond_data_field: ConcatFeaturizer(
+                [
+                    bond_type_one_hot,
+                    bond_is_conjugated,
+                    bond_is_in_ring,
+                    bond_stereo_one_hot,
+                ]
+            )
+        }
 
         super().__init__(featurizer_funcs=featurizer_funcs, self_loop=False)
 

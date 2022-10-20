@@ -11,6 +11,8 @@ from src.data.grapher import build_cgr, build_mol_graph
 from src.data.featurizers import (
     ChempropAtomFeaturizer,
     ChempropBondFeaturizer,
+    SLAPAtomFeaturizer,
+    SLAPBondFeaturizer,
     RDKit2DGlobalFeaturizer,
     RDKitMorganFingerprinter,
     OneHotEncoder,
@@ -104,6 +106,9 @@ class SLAPDataset(DGLDataset):
         elif featurizers == "chemprop":
             self.atom_featurizer = ChempropAtomFeaturizer(atom_data_field="x")
             self.bond_featurizer = ChempropBondFeaturizer(bond_data_field="e")
+        elif featurizers == "custom":
+            self.atom_featurizer = SLAPAtomFeaturizer(atom_data_field="x")
+            self.bond_featurizer = SLAPBondFeaturizer(bond_data_field="x")
         else:
             raise ValueError("Unexpected value for 'featurizers'")
 

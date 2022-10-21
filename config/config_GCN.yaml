@@ -7,7 +7,7 @@ encoder:
   reaction: True
   graph_type: bond_edges  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
   # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
-  featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
+  featurizers: custom # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop, custom}
   hidden_size: 572  # int
   depth: 4  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers

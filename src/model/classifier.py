@@ -342,7 +342,7 @@ class FFNModel(Classifier):
         )
 
     def forward(self, x):
-        self.decoder(x)
+        return self.decoder(x)
 
     def _get_preds(self, batch):
         _, global_features_batch, _ = batch

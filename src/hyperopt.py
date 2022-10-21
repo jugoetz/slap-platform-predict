@@ -22,20 +22,24 @@ def update_hyperparameters(hparams, update_params):
 
     if hparams_local["name"] in ["D-MPNN", "GCN", "FFN"]:
 
-        hparams_local["encoder"]["hidden_size"] = update_params.get(
-            "encoder_hidden_size", hparams["encoder"]["hidden_size"]
-        )
-        hparams_local["encoder"]["depth"] = update_params.get(
-            "encoder_depth", hparams["encoder"]["depth"]
-        )
+        if hparams_local["name"] != "FFN":
+            hparams_local["encoder"]["hidden_size"] = update_params.get(
+                "encoder_hidden_size", hparams["encoder"]["hidden_size"]
+            )
+            hparams_local["encoder"]["depth"] = update_params.get(
+                "encoder_depth", hparams["encoder"]["depth"]
+            )
+            hparams_local["encoder"]["dropout_ratio"] = update_params.get(
+                "dropout", hparams["encoder"]["dropout_ratio"]
+            )
+            hparams_local["encoder"]["aggregation"] = update_params.get(
+                "aggregation", hparams["encoder"]["aggregation"]
+            )
         hparams_local["decoder"]["hidden_size"] = update_params.get(
             "decoder_hidden_size", hparams["decoder"]["hidden_size"]
         )
         hparams_local["decoder"]["depth"] = update_params.get(
             "decoder_depth", hparams["decoder"]["depth"]
-        )
-        hparams_local["encoder"]["dropout_ratio"] = update_params.get(
-            "dropout", hparams["encoder"]["dropout_ratio"]
         )
         hparams_local["decoder"]["dropout_ratio"] = update_params.get(
             "dropout", hparams["decoder"]["dropout_ratio"]
@@ -46,9 +50,6 @@ def update_hyperparameters(hparams, update_params):
         hparams_local["optimizer"]["lr_scheduler"]["lr_min"] = (
             hparams_local["optimizer"]["lr"] / 10
         )  # we enforce this in the optimization
-        hparams_local["encoder"]["aggregation"] = update_params.get(
-            "aggregation", hparams["encoder"]["aggregation"]
-        )
 
     elif hparams_local["name"] == "LogisticRegression":
 

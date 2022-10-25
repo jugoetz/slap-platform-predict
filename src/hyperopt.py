@@ -20,9 +20,9 @@ def update_hyperparameters(hparams, update_params):
     """
     hparams_local = deepcopy(hparams)
 
-    if hparams_local["name"] in ["D-MPNN", "GCN", "FFN"]:
+    if hparams_local["name"] in ["D-MPNN", "GCN", "GraphAgnostic", "FFN"]:
 
-        if hparams_local["name"] != "FFN":
+        if hparams_local["name"] in ["D-MPNN", "GCN"]:
             hparams_local["encoder"]["hidden_size"] = update_params.get(
                 "encoder_hidden_size", hparams["encoder"]["hidden_size"]
             )
@@ -144,7 +144,7 @@ def optimize_hyperparameters_bayes(
 
     bounds = get_hparam_bounds(hparam_config_path)
 
-    if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
+    if hparams["name"] in ["D-MPNN", "GCN", "GraphAgnostic", "FFN"]:
         obj_func = objective_function
     else:
         obj_func = objective_function_sklearn

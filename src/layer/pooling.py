@@ -4,8 +4,7 @@ Pooling layers for heterogeneous graphs
 These are generalizations of the pooling layers in dgl.nn.pytorch.glob
 """
 
-
-import torch as th
+import torch
 import torch.nn as nn
 import numpy as np
 import dgl
@@ -182,3 +181,40 @@ class GlobalAttentionPooling(nn.Module):
                 return readout, gate
             else:
                 return readout
+
+
+class ConcatenateNodeEdgeSumPooling(nn.Module):
+    """Apply sum pooling over the nodes and separately over the edges in a graph. Concatenate the results.
+
+    Notes:
+        Input: Could be one graph, or a batch of graphs. If using a batch of graphs,
+        make sure nodes/edges in all graphs have the same feature size, and concatenate
+        nodes'/edges' feature together as the input.
+    """
+
+    def __init__(self, ntype, etype, nfeat, efeat):
+        """
+        Args:
+            ntype (str): Node type which features should be taken from
+            feat (str): Feature that pooling is applied to
+        """
+        super(ConcatenateNodeEdgeSumPooling, self).__init__()
+        self.ntype = ntype
+        self.nfeat = nfeat
+        self.etype = etype
+        self.efeat = efeat
+
+    def forward(self, graph):
+        """
+        Compute sum pooling.
+
+        Args:
+            graph(DGLHeteroGraph): A DGLHeteroGraph or a batch of DGLHeteroGraphs.
+
+        Returns:
+            torch.Tensor: The output feature with shape :math:`(B, D)`, where
+                :math:`B` refers to the batch size of input graphs.
+        """
+        nreadout = dgl.readout_nodes(graph, self.nfeat, ntype=self.ntype, op="sum")
+        ereadout = dgl.readout_edges(graph, self.efeat, etype=self.etype, op="sum")
+        return torch.cat([nreadout, ereadout], dim=1)

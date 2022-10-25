@@ -72,7 +72,7 @@ def run_training(args, hparams):
     else:
         job_type = "training"
 
-    if hparams["name"] in ["D-MPNN", "GCN", "FFN"]:
+    if hparams["name"] in ["D-MPNN", "GCN", "GraphAgnostic", "FFN"]:
         aggregate_metrics, fold_metrics = cross_validate(
             data,
             hparams,

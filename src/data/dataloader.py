@@ -2,6 +2,7 @@ import os
 from typing import List, Tuple, Optional, Union
 
 import dgl
+import numpy as np
 from dgl.data import DGLDataset
 import torch
 import pandas as pd
@@ -28,7 +29,7 @@ def collate_fn(
     graphs, global_features, labels = map(list, zip(*batch))
 
     batched_graphs = dgl.batch(graphs)
-    if global_features[0] is None:
+    if len(global_features[0]) == 0:
         batched_global_features = None
     else:
         batched_global_features = torch.tensor(global_features, dtype=torch.float32)
@@ -58,7 +59,7 @@ class SLAPDataset(DGLDataset):
         raw_dir: Union[str, os.PathLike] = None,
         url: str = None,
         reaction=False,
-        global_features: str = None,
+        global_features: Union[str, List[str]] = None,
         global_features_file: Union[str, os.PathLike] = None,
         graph_type: str = "bond_edges",
         featurizers: str = "dgllife",
@@ -75,7 +76,11 @@ class SLAPDataset(DGLDataset):
             url: Url to fetch data from. Default None
             reaction: Whether data is a reaction. If True, data will be loaded as CGR. Default False.
             global_features: Which global features to add.
-                Options: {"RDKit", "FP", "OHE", "fromFile", None}. Default None.
+                Options: {"RDKit", "FP", "OHE", "fromFile", None} and combinations thereof.
+                If a string is passed, any way to combine the features is allowed (e.g. "RDKit_FP", "RDKit+FP",...)
+                If a list is passed, only the strings list in options as list members will have an effect.
+                Passing and empty list, or a list with unrecognized options is equivalent to passing None.
+                Default None.
             global_features_file: Path to file containing global features.
                 Only used with global_features=fromFile. Default None.
             graph_type: Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
@@ -91,13 +96,17 @@ class SLAPDataset(DGLDataset):
             verbose: Whether to provide verbose output
         """
 
+        if global_features is None:
+            global_features = []
+
         self.reaction = reaction
         self.label_column = label_column
         self.smiles_columns = smiles_columns
         self.graph_type = graph_type  # whether to form BE- or BN-graph
         self.global_features = (
-            None  # container for global features e.g. rdkit or fingerprints
-        )
+            []
+        )  # container for global features e.g. rdkit or fingerprints
+        self.global_featurizers = []  # container for global featurizers
 
         # featurizer to obtain atom and bond features
         if featurizers == "dgllife":
@@ -112,17 +121,19 @@ class SLAPDataset(DGLDataset):
         else:
             raise ValueError("Unexpected value for 'featurizers'")
 
-        # global featurizer
-        if global_features == "RDKit":
-            self.global_featurizer = RDKit2DGlobalFeaturizer(normalize=True)
-        elif global_features == "FP":
-            self.global_featurizer = RDKitMorganFingerprinter(radius=6, n_bits=1024)
-        elif global_features == "OHE":
-            self.global_featurizer = OneHotEncoder()
-        elif global_features == "fromFile":
-            self.global_featurizer = FromFileFeaturizer(filename=global_features_file)
-        else:
-            self.global_featurizer = None
+        # global featurizer(s)
+        if "RDKit" in global_features:
+            self.global_featurizers.append(RDKit2DGlobalFeaturizer(normalize=True))
+        if "FP" in global_features:
+            self.global_featurizers.append(
+                RDKitMorganFingerprinter(radius=6, n_bits=1024)
+            )
+        if "OHE" in global_features:
+            self.global_featurizers.append(OneHotEncoder())
+        if "fromFile" in global_features:
+            self.global_featurizers.append(
+                FromFileFeaturizer(filename=global_features_file)
+            )
 
         super(SLAPDataset, self).__init__(
             name=name,
@@ -145,6 +156,11 @@ class SLAPDataset(DGLDataset):
         # ...which allows us to do this:
         smiles = smiles[0]
 
+        # clear previous data
+        self.graphs = []
+        self.global_features = [np.array(()) for _ in smiles]
+        self.labels = []
+
         if self.reaction:
             self.graphs = [
                 build_cgr(
@@ -156,6 +172,7 @@ class SLAPDataset(DGLDataset):
                 )
                 for s in smiles
             ]
+
         else:
             self.graphs = [
                 build_mol_graph(
@@ -167,36 +184,52 @@ class SLAPDataset(DGLDataset):
                 for s in smiles
             ]
 
-        if self.global_featurizer is not None:
+        if len(self.global_featurizers) > 0:
             if self.reaction:
                 # if it is a reaction, we featurize for both reactants, then concatenate
-                if isinstance(self.global_featurizer, OneHotEncoder):
-                    # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
-                    smiles_reactant1 = [s.split(".")[0] for s in smiles]
-                    smiles_reactant2 = [s.split(">>")[0].split(".")[1] for s in smiles]
-                    self.global_featurizer.add_dimension(smiles_reactant1)
-                    self.global_featurizer.add_dimension(smiles_reactant2)
-                self.global_features = [
-                    self.global_featurizer.process(*s.split(">>")[0].split("."))
-                    for s in smiles
-                ]
+                for global_featurizer in self.global_featurizers:
+                    if isinstance(global_featurizer, OneHotEncoder):
+                        # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
+                        smiles_reactant1 = [s.split(".")[0] for s in smiles]
+                        smiles_reactant2 = [
+                            s.split(">>")[0].split(".")[1] for s in smiles
+                        ]
+                        global_featurizer.add_dimension(smiles_reactant1)
+                        global_featurizer.add_dimension(smiles_reactant2)
+                    self.global_features = [
+                        np.concatenate(i)
+                        for i in zip(
+                            self.global_features,
+                            [
+                                global_featurizer.process(*s.split(">>")[0].split("."))
+                                for s in smiles
+                            ],
+                        )
+                    ]
 
             else:
                 # if instead we get a single molecule, we just featurize for that
-                if isinstance(self.global_featurizer, OneHotEncoder):
-                    # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
-                    self.global_featurizer.add_dimension(smiles)
-                self.global_features = [
-                    self.global_featurizer.process(s) for s in smiles
-                ]
-        else:
-            self.global_features = [None for s in smiles]
+                for global_featurizer in self.global_featurizers:
+                    if isinstance(global_featurizer, OneHotEncoder):
+                        # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
+                        global_featurizer.add_dimension(smiles)
+
+                    self.global_features = [
+                        np.concatenate(i)
+                        for i in zip(
+                            self.global_features,
+                            [global_featurizer.process(s) for s in smiles],
+                        )
+                    ]
 
         if self.label_column:
             self.labels = csv_data[self.label_column].values.tolist()
         else:
             # allow having no labels, e.g. for prediction
-            self.labels = [None for s in smiles]
+            self.labels = [None for _ in smiles]
+
+        # little safety net
+        assert len(self.graphs) == len(self.labels) == len(self.global_features)
 
     def __getitem__(self, idx):
         """Get graph and label by index
@@ -235,16 +268,11 @@ class SLAPDataset(DGLDataset):
 
     @property
     def global_feature_size(self):
-        if (
-            hasattr(self, "global_featurizer")
-            and getattr(self, "global_featurizer") is not None
-        ):
-            n_global_features = self.global_featurizer.feat_size
-            if self.reaction and not isinstance(self.global_featurizer, OneHotEncoder):
-                return (
-                    2 * n_global_features
-                )  # for 2 reactants we have 2 x features (except for the OHE which always encorporates all inputs in feat size)
+        n_global_features = 0
+        for global_featurizer in self.global_featurizers:
+            if self.reaction and not isinstance(global_featurizer, OneHotEncoder):
+                # for 2 reactants we have 2 x features (except for the OHE which always encorporates all inputs in feat size)
+                n_global_features += 2 * global_featurizer.feat_size
             else:
-                return n_global_features
-        else:
-            return 0
+                n_global_features += global_featurizer.feat_size
+        return n_global_features

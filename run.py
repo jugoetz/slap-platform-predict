@@ -37,8 +37,9 @@ if __name__ == "__main__":
     parent_parser.add_argument(
         "--global_features",
         type=str,
+        nargs="+",
         choices=["RDKit", "FP", "OHE", "fromFile", "None"],
-        help="Which global features to add. Options: {'RDKit', 'FP', 'OHE', 'fromFile', 'None'}.",
+        help="Which global features to add. Multiple options can be given, separated by a space.",
     )
 
     parent_parser.add_argument(

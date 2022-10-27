@@ -1,5 +1,5 @@
 # common settings
-name: LogisticRegression  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression}.
+name: LogisticRegression  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression, GraphAgnostic}.
 accelerator: cpu  # usually cpu or gpu.
 
 # model

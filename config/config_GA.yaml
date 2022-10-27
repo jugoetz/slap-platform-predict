@@ -1,5 +1,5 @@
 # common settings
-name: GraphAgnostic  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression}.
+name: GraphAgnostic  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression, GraphAgnostic}.
 accelerator: gpu  # usually cpu or gpu.
 
 # model

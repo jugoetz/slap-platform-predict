@@ -4,6 +4,7 @@ import wandb
 import pytorch_lightning as pl
 
 from src.evaluate import calculate_metrics
+from src.model.callbacks import LogMetricsCallback, BestValLossEpochCallback
 from src.model.classifier import load_model
 from src.model.sklearnmodels import load_sklearn_model
 from src.util.definitions import LOG_DIR, CKPT_DIR
@@ -51,18 +52,23 @@ def train(
         run_group = "single_run"
 
     # set up trainer
-    callbacks = [
-        pl.callbacks.ModelCheckpoint(
-            monitor="val/loss", mode="min", dirpath=CKPT_DIR / run_id, filename="best"
-        )
-    ]
+
+    checkpoint_callback_last = pl.callbacks.ModelCheckpoint(
+        save_top_k=1,
+        monitor="epoch",
+        mode="max",
+        dirpath=CKPT_DIR / run_id,
+        filename="last-epoch{epoch:02d}-val_loss{val/loss:.2f}",
+        auto_insert_metric_name=False,
+    )
+    metrics_callback = LogMetricsCallback()
 
     trainer = pl.Trainer(
         max_epochs=hparams["training"]["max_epochs"],
         log_every_n_steps=1,
         default_root_dir=LOG_DIR / "checkpoints",
         accelerator=hparams["accelerator"],
-        callbacks=callbacks,
+        callbacks=[checkpoint_callback_last, metrics_callback],
     )
 
     wandb.init(
@@ -80,17 +86,25 @@ def train(
     # run training
     trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
-    # dict for logged metrics
-    metrics = {k: v for k, v in trainer.logged_metrics.items()}
+    # get the metrics for all epochs
+    metrics = metrics_callback.metrics
 
     # optionally, run test
     if test_dls:
         for test_name, test_dl in test_dls.items():
-            trainer.test(model, test_dl, ckpt_path="best")
+            trainer.test(
+                model, test_dl, ckpt_path=checkpoint_callback_last.best_model_path
+            )
             for k, v in trainer.logged_metrics.items():
                 if k.startswith("test"):
                     metrics[k.replace("test", test_name)] = v
 
+    # for the return metrics, we want to return the metrics for the last epoch not all epochs
+    metrics = {
+        k: v[-1] if v.dim() == 1 else v for k, v in metrics.items()
+    }  # some metrics are only a single value so we don't want to index them
+
+    # log the best metrics to wandb
     wandb.log(metrics)
     wandb.finish()
 

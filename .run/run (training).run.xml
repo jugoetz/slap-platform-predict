@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/run.py" />
-    <option name="PARAMETERS" value="train --config config/config_LogReg.yaml --data_path data/reactionSMILESunbalanced_LCMS_2022-08-25.csv --split_indices data/LCMS_split_763records --tags test --run_test --global_features RDKit" />
+    <option name="PARAMETERS" value="train --config config/config_FFN.yaml --data_path data/reactionSMILESunbalanced_LCMS_2022-08-25.csv --split_indices data/LCMS_split_763records --tags test --run_test --global_features RDKit" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

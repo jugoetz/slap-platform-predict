@@ -1,0 +1,39 @@
+# common settings
+name: D-MPNN  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression, GraphAgnostic}.
+accelerator: gpu  # usually cpu or gpu.
+
+# model
+encoder:
+  reaction: True
+  graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
+  # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
+  featurizers: custom  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop, custom}
+  hidden_size: 927  # int
+  depth: 3  # int, >= 3, number of linear layers (?)
+  bias: False  # bool, whether to add bias to linear layers
+  dropout_ratio: 0.0  # float, probability of dropout
+  aggregation: sum  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
+  activation: ReLU  # str, any activation from torch.nn can be used
+
+decoder:
+  global_features: None # str, options: {"RDKit", "FP", "OHE", "fromFile", None}. Global features to include with the graphs.
+  global_features_file: None #data/all_reactant_smiles_delfta_features.json  # str, path to file containing global features. Only used if global_features == "fromFile".
+  hidden_size: 98  # int
+  depth: 1  # int, number of hidden layers
+  dropout_ratio: 0.0  # float, probability of dropout
+  activation: ReLU  # str, any activation from torch.nn can be used
+  hidden_bias: False  # bool, whether to add bias to hidden layers
+  out_bias: False  # bool, whether to add bias to output layer
+  out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
+
+optimizer:
+  weight_decay: 0
+  lr: 1.3e-4
+  lr_scheduler:
+    epochs: 100  # should be the same as max_epochs for the desired effect
+    lr_min: 1.3e-5
+    lr_warmup_step: 2
+    scheduler_name: exp_with_linear_warmup
+
+training:
+  max_epochs: 100

@@ -110,6 +110,11 @@ if __name__ == "__main__":
         type=pathlib.Path,
         help="Path to the model checkpoint to be used for inference.",
     )
+    predict_parser.add_argument(
+        "--return_probabilities",
+        action="store_true",
+        help="Return class probabilities instead of class predictions",
+    )
 
     predict_parser.set_defaults(func=run_prediction)
 

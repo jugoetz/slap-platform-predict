@@ -2,7 +2,7 @@ import pytorch_lightning as pl
 import torch
 
 
-def predict(model, data, hparams):
+def predict(model, data, hparams, return_proba=False):
     """
     Predicts on given data with given model.
 
@@ -18,6 +18,9 @@ def predict(model, data, hparams):
         accelerator=hparams["accelerator"], logger=False, max_epochs=-1
     )
     probs = torch.cat(trainer.predict(model, data))
-    # obtain labels from probabilities at 0.5 threshold
-    labels = (probs > 0.5).int()
-    return labels
+    if return_proba:
+        return probs
+    else:
+        # obtain labels from probabilities at 0.5 threshold
+        labels = (probs > 0.5).int()
+        return labels

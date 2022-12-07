@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from src.data.dataloader import SLAPDataset, collate_fn
 from src.util.definitions import LOG_DIR
 from src.util.io import walk_split_directory
+from src.util.logging import generate_run_id
 from src.cross_validation import cross_validate_sklearn, cross_validate
 from src.predict import predict
 from src.model.classifier import load_trained_model
@@ -131,13 +132,16 @@ def run_prediction(args, hparams):
 
     # load trained model
     model = load_trained_model(hparams["name"], args.model_path)
-
+    model.modules()
     # predict
-    predictions = predict(model, dl, hparams)
+    predictions = predict(model, dl, hparams, return_proba=args.return_probabilities)
 
     # save predictions to text file
     pred_file = (
-        LOG_DIR / "predictions" / args.model_path.parent.name / "predictions.txt"
+        LOG_DIR
+        / "predictions"
+        / f"{args.model_path.parent.name}_{generate_run_id()}"
+        / "predictions.txt"
     )
     if not pred_file.parent.exists():
         pred_file.parent.mkdir(parents=True)

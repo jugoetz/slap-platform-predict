@@ -7,58 +7,46 @@ from src.util.rdkit_util import create_reaction_instance
 
 
 class SLAPReactionGenerator:
+    _piperazine_rxn = "[#6]-[#6]-[#8]-[#6](=O)-[#7]-1-[#6]-[#6H1](-[#6:1])-[#7]-[#6H1](-[#6:2])-[#6]-1.>>[#6:1]-[#6]=O.[#6:2]-[#6]=O"
+    _dimemorpholine_rxn = "[#6:1]-[#6]-1-[#6]-[#8]-[#6](-[#6])(-[#6])-[#6](-[#6:2])-[#7]-1>>[#6:2]-[#6]=O.[#6:1]-[#6]=O"
+    _monomemorpholine_rxn = "[#6:1]-[#6]-1-[#6]-[#8]-[#6](-[#6])-[#6](-[#6:2])-[#7]-1>>[#6:2]-[#6]=O.[#6:1]-[#6]=O"
+    _trialphamorpholine_rxn = (
+        "[#6:4]-[#6]-1-[#6]-[#8]-[#6]-[#6D4:3]-[#7]-1>>[#6:3]=O.[#6:4]-[#6]=O"
+    )
+    _morpholine_rxn = (
+        "[#6:1]-[#6]-1-[#6]-[#8]-[#6]-[#6](-[#6:2])-[#7]-1>>[#6:1]-[#6]=O.[#6:2]-[#6]=O"
+    )
+    _piperazine_slap_rxn = "[#6H1:1]=O>>[#6]-[#6]-[#8]-[#6](=O)-[#7](-[#6]-[#6:1]-[#7])-[#6]-[#14](-[#6])(-[#6])-[#6]"
+    _dimemorpholine_slap_rxn = (
+        "[#6H1:1]=O>>[#6]-[#6](-[#6])(-[#6:1]-[#7])-[#8]-[#6]-[#14](-[#6])(-[#6])-[#6]"
+    )
+    _monomemorpholine_slap_rxn = (
+        "[#6H1:1]=O>>[#6]-[#6](-[#6:1]-[#7])-[#8]-[#6]-[#14](-[#6])(-[#6])-[#6]"
+    )
+    _morpholine_slap_rxn = (
+        "[#6H1:1]=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6:1]-[#7]"
+    )
+    _trialphamorpholine_slap_rxn = "[#6:1]-[#6](-[#6:2])=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6](-[#6:1])(-[#6:2])-[#7]"
+    _slap_rxn = "[#6:1]-[#6X3;H1,H0:2]=[#8].[#6:3]-[#6:4](-[#7:5])-[#6:6]-[#8,#7:7]-[#6:8]-[#14]>>[#6:1]-[#6:2]-1-[#6:8]-[#8,#7:7]-[#6:6]-[#6:4](-[#6:3])-[#7:5]-1"
+
     def __init__(self):
-        piperazine_rxn = ReactionFromSmarts(
-            "[#6]-[#6]-[#8]-[#6](=O)-[#7]-1-[#6]-[#6H1](-[#6:1])-[#7]-[#6H1](-[#6:2])-[#6]-1.>>[#6:1]-[#6]=O.[#6:2]-[#6]=O"
-        )
-        dimemorpholine_rxn = ReactionFromSmarts(
-            "[#6:1]-[#6]-1-[#6]-[#8]-[#6](-[#6])(-[#6])-[#6](-[#6:2])-[#7]-1>>[#6:2]-[#6]=O.[#6:1]-[#6]=O"
-        )
-        monomemorpholine_rxn = ReactionFromSmarts(
-            "[#6:1]-[#6]-1-[#6]-[#8]-[#6](-[#6])-[#6](-[#6:2])-[#7]-1>>[#6:2]-[#6]=O.[#6:1]-[#6]=O"
-        )
-        trialphamorpholine_rxn = ReactionFromSmarts(
-            "[#6:4]-[#6]-1-[#6]-[#8]-[#6]-[#6D4:3]-[#7]-1>>[#6:3]=O.[#6:4]-[#6]=O"
-        )
-        morpholine_rxn = ReactionFromSmarts(
-            "[#6:1]-[#6]-1-[#6]-[#8]-[#6]-[#6](-[#6:2])-[#7]-1>>[#6:1]-[#6]=O.[#6:2]-[#6]=O"
-        )
-
-        piperazine_slap_rxn = ReactionFromSmarts(
-            "[#6H1:1]=O>>[#6]-[#6]-[#8]-[#6](=O)-[#7](-[#6]-[#6:1]-[#7])-[#6]-[#14](-[#6])(-[#6])-[#6]"
-        )
-        dimemorpholine_slap_rxn = ReactionFromSmarts(
-            "[#6H1:1]=O>>[#6]-[#6](-[#6])(-[#6:1]-[#7])-[#8]-[#6]-[#14](-[#6])(-[#6])-[#6]"
-        )
-        monomemorpholine_slap_rxn = ReactionFromSmarts(
-            "[#6H1:1]=O>>[#6]-[#6](-[#6:1]-[#7])-[#8]-[#6]-[#14](-[#6])(-[#6])-[#6]"
-        )
-        morpholine_slap_rxn = ReactionFromSmarts(
-            "[#6H1:1]=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6:1]-[#7]"
-        )
-        trialphamorpholine_slap_rxn = ReactionFromSmarts(
-            "[#6:1]-[#6](-[#6:2])=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6](-[#6:1])(-[#6:2])-[#7]"
-        )
-
         self.backwards_reactions = {
-            "piperazine": piperazine_rxn,
-            "dimemorpholine": dimemorpholine_rxn,
-            "monomemorpholine": monomemorpholine_rxn,
-            "trialphamorpholine": trialphamorpholine_rxn,
-            "morpholine": morpholine_rxn,
+            "piperazine": ReactionFromSmarts(self._piperazine_rxn),
+            "dimemorpholine": ReactionFromSmarts(self._dimemorpholine_rxn),
+            "monomemorpholine": ReactionFromSmarts(self._monomemorpholine_rxn),
+            "trialphamorpholine": ReactionFromSmarts(self._trialphamorpholine_rxn),
+            "morpholine": ReactionFromSmarts(self._morpholine_rxn),
         }
 
         self.slap_forming_reactions = {
-            "piperazine": piperazine_slap_rxn,
-            "dimemorpholine": dimemorpholine_slap_rxn,
-            "monomemorpholine": monomemorpholine_slap_rxn,
-            "trialphamorpholine": trialphamorpholine_slap_rxn,
-            "morpholine": morpholine_slap_rxn,
+            "piperazine": ReactionFromSmarts(self._piperazine_slap_rxn),
+            "dimemorpholine": ReactionFromSmarts(self._dimemorpholine_slap_rxn),
+            "monomemorpholine": ReactionFromSmarts(self._monomemorpholine_slap_rxn),
+            "trialphamorpholine": ReactionFromSmarts(self._trialphamorpholine_slap_rxn),
+            "morpholine": ReactionFromSmarts(self._morpholine_slap_rxn),
         }
 
-        self.slap_rxn = ReactionFromSmarts(
-            "[#6:1]-[#6X3;H1,H0:2]=[#8].[#6:3]-[#6:4](-[#7:5])-[#6:6]-[#8,#7:7]-[#6:8]-[#14]>>[#6:1]-[#6:2]-1-[#6:8]-[#8,#7:7]-[#6:6]-[#6:4](-[#6:3])-[#7:5]-1"
-        )
+        self.slap_rxn = ReactionFromSmarts(self._slap_rxn)
 
         for rxn in self.backwards_reactions.values():
             rxn.Initialize()

@@ -3,16 +3,18 @@ from rdkit.Chem import Draw, rdChemReactions
 from rdkit.Chem.rdchem import Mol
 
 
-def canonicalize_smiles(smiles: str) -> str:
+def canonicalize_smiles(smiles: str, remove_explicit_H: bool = False) -> str:
     """
     Canonicalize a SMILES string.
 
-    Removes any atom-mapping numbers
+    Removes any atom-mapping numbers. Optionally, removes explicit Hs.
     """
     mol = Chem.MolFromSmiles(smiles)
     for a in mol.GetAtoms():
         if a.HasProp("molAtomMapNumber"):
             a.ClearProp("molAtomMapNumber")
+    if remove_explicit_H:
+        mol = Chem.RemoveHs(mol)
     return Chem.MolToSmiles(mol)
 
 
@@ -48,6 +50,17 @@ def mol_to_file_with_indices(mol: Mol, file: str):
     mol = move_atom_index_to_mapno(mol)
     mol = move_bond_index_to_props(mol)
     Draw.MolToFile(mol, file)
+
+
+def remove_mapno(mol: Mol):
+    """
+    Remove all atom-mapping numbers from a molecule.
+    """
+    mol_copy = Chem.Mol(mol)
+    for atom in mol_copy.GetAtoms():
+        if atom.HasProp("molAtomMapNumber"):
+            atom.ClearProp("molAtomMapNumber")
+    return mol_copy
 
 
 def create_reaction_instance(rxn, reactants):

@@ -1,9 +1,15 @@
-from typing import List, Union, Tuple, Sequence
+import os
+from typing import List, Union, Tuple, Sequence, Optional
 
+import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdChemReactions import ChemicalReaction, ReactionFromSmarts, SanitizeRxn
 
-from src.util.rdkit_util import create_reaction_instance
+from src.util.rdkit_util import (
+    create_reaction_instance,
+    remove_mapno,
+    canonicalize_smiles,
+)
 
 
 class SLAPReactionGenerator:
@@ -28,6 +34,7 @@ class SLAPReactionGenerator:
     )
     _trialphamorpholine_slap_rxn = "[#6:1]-[#6](-[#6:2])=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6](-[#6:1])(-[#6:2])-[#7]"
     _slap_rxn = "[#6:1]-[#6X3;H1,H0:2]=[#8].[#6:3]-[#6:4](-[#7:5])-[#6:6]-[#8,#7:7]-[#6:8]-[#14]>>[#6:1]-[#6:2]-1-[#6:8]-[#8,#7:7]-[#6:6]-[#6:4](-[#6:3])-[#7:5]-1"
+    dataset = None
 
     def __init__(self):
         self.backwards_reactions = {
@@ -210,3 +217,96 @@ class SLAPReactionGenerator:
         for reactant_pair in reactants:
             reactions.append(self.generate_reaction(reactant_pair, product_type))
         return reactions
+
+    def reactants_in_dataset(
+        self,
+        reactant_pair: Sequence[Chem.Mol],
+        product_type: str,
+        dataset_path: Optional[Union[str, os.PathLike]] = None,
+        use_cache=True,
+    ) -> Tuple[bool, bool, bool, Optional[list]]:
+        """
+        Check whether the reactants appear in a reference data set.
+
+        Args:
+            dataset_path (str): Path to the dataset. Expects a CSV file with the columns "SMILES"
+            and "targets".
+            reactant_pair (Sequence): Reactants of the SLAP reaction. Expects two aldehydes/ketones.
+                The first item in the sequence is used to generate the SLAP reagent. The second item must be an aldehyde.
+            product_type (str): Type of the product. Can be either "morpholine" or "piperazine" or "dimemorpholine" or "monomemorpholine" or "trialphamorpholine".
+
+
+        Returns:
+            tuple: The first item indicates whether the first reactant appears in the dataset. The second item indicates
+                whether the second reactant appears in the dataset. The third item indicated whether this exact combination appears in the data set.
+                If the third item is True, the forth item is a list of the
+                reaction outcomes of the respective reactions in the dataset. Otherwise, it is None.
+        """
+        if use_cache:
+            if not self.dataset:
+                data = []
+                reactions = pd.read_csv(
+                    dataset_path, usecols=["SMILES", "targets"]
+                ).values
+                for reaction in reactions:
+                    rxn = ReactionFromSmarts(reaction[0])
+                    reactants = [
+                        Chem.MolToSmiles(remove_mapno(rxn.GetReactantTemplate(0))),
+                        Chem.MolToSmiles(remove_mapno(rxn.GetReactantTemplate(1))),
+                    ]
+                    reactants = [
+                        canonicalize_smiles(smi, remove_explicit_H=True)
+                        for smi in reactants
+                    ]
+                    outcome = reaction[1]
+                    reactants.append(outcome)
+                    data.append(reactants)
+                self.dataset = data
+            dataset = self.dataset
+        else:
+            data = []
+            reactions = pd.read_csv(dataset_path, usecols=["SMILES", "targets"]).values
+            for reaction in reactions:
+                rxn = ReactionFromSmarts(reaction[0])
+                reactants = [
+                    Chem.MolToSmiles(remove_mapno(rxn.GetReactantTemplate(0))),
+                    Chem.MolToSmiles(remove_mapno(rxn.GetReactantTemplate(1))),
+                ]
+                reactants = [
+                    canonicalize_smiles(smi, remove_explicit_H=True)
+                    for smi in reactants
+                ]
+                outcome = reaction[1]
+                reactants.append(outcome)
+                data.append(reactants)
+            dataset = data
+
+        slap_smiles = Chem.MolToSmiles(
+            self.generate_slap_reagent(reactant_pair[0], product_type)
+        )
+        aldehyde = Chem.MolToSmiles(reactant_pair[1])
+        dataset_flattened = [item for sublist in dataset for item in sublist]
+        dataset_reactants = ["+".join(sublist[:2]) for sublist in dataset]
+        slap_in_dataset = slap_smiles in dataset_flattened
+        aldehyde_in_dataset = aldehyde in dataset_flattened
+        reaction_outcomes = None
+        if slap_in_dataset and aldehyde_in_dataset:
+            # check whether the exact combination appears in the dataset
+            reaction_idx_in_dataset = [
+                i
+                for i, reactants in enumerate(dataset_reactants)
+                if (reactants == "+".join([slap_smiles, aldehyde]))
+                or (reactants == "+".join([aldehyde, slap_smiles]))
+            ]
+            reaction_in_dataset = len(reaction_idx_in_dataset) > 0
+            if reaction_in_dataset:
+                reaction_outcomes = [dataset[i][2] for i in reaction_idx_in_dataset]
+        else:
+            reaction_in_dataset = False
+
+        return (
+            slap_in_dataset,
+            aldehyde_in_dataset,
+            reaction_in_dataset,
+            reaction_outcomes,
+        )

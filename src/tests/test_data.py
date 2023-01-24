@@ -1,3 +1,4 @@
+import os
 from unittest import TestCase
 
 from rdkit import Chem
@@ -5,6 +6,7 @@ from rdkit.Chem.rdChemReactions import ReactionToSmarts
 
 from src.data.util import SLAPReactionGenerator
 from src.util.rdkit_util import canonicalize_smiles
+from src.util.definitions import DATA_ROOT
 
 
 class TestSLAPReactionGenerator(TestCase):
@@ -219,3 +221,36 @@ class TestSLAPReactionGenerator(TestCase):
                 ReactionToSmarts(reaction),
                 "[#6:9]-[#6:1](-[#6:10])-[#6:2]=[#8].[#6]-[Si](-[#6])(-[#6])-[#6:8]-[#8:7]-[#6:6]-[#6:4]1(-[#6:3]-[#6:11]-[#6:12]-[#6:13]-[#6:14]-1)-[#7:5]>>[#6:1](-[#6:2]1-[#6:8]-[#8:7]-[#6:6]-[#6:4]2(-[#6:3]-[#6:11]-[#6:12]-[#6:13]-[#6:14]-2)-[#7:5]-1)(-[#6:9])-[#6:10]",
             )
+
+    def test_reactants_in_dataset_returns_4_tuple(self):
+        """Test that the reactants in dataset method runs and returns a length-4 tuple"""
+        result = self.generator.reactants_in_dataset(
+            (
+                Chem.MolFromSmiles("O=Cc1ccc(C(C)(C)C)cc1"),
+                Chem.MolFromSmiles("CC(C=O)CCC"),
+            ),
+            product_type="morpholine",
+            dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
+        )
+        self.assertEqual(len(result), 4)
+
+    def test_reactants_in_dataset_recognizes_slap(self):
+        """Test that the reactants in dataset method identifies the slap reagent in the dataset"""
+        result = self.generator.reactants_in_dataset(
+            (Chem.MolFromSmiles("O=C1CCOCC1"), Chem.MolFromSmiles("CC(C=O)CCC")),
+            product_type="trialphamorpholine",
+            dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
+        )
+        self.assertTrue(result[0])
+
+    def test_reactants_in_dataset_recognizes_aldehyde(self):
+        """Test that the reactants in dataset method identifies the aldehyde in the dataset"""
+        result = self.generator.reactants_in_dataset(
+            (
+                Chem.MolFromSmiles("O=Cc1ccc(C(C)(C)C)cc1"),
+                Chem.MolFromSmiles("CC(C=O)CCC"),
+            ),
+            product_type="morpholine",
+            dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
+        )
+        self.assertTrue(result[1])

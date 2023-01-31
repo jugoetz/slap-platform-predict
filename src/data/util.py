@@ -1,9 +1,14 @@
 import os
-from typing import List, Union, Tuple, Sequence, Optional
+from typing import List, Union, Tuple, Sequence, Optional, Any
 
 import pandas as pd
 from rdkit import Chem
-from rdkit.Chem.rdChemReactions import ChemicalReaction, ReactionFromSmarts, SanitizeRxn
+from rdkit.Chem.rdChemReactions import (
+    ChemicalReaction,
+    ReactionFromSmarts,
+    SanitizeRxn,
+    ReactionToSmarts,
+)
 
 from src.util.rdkit_util import (
     create_reaction_instance,
@@ -67,6 +72,8 @@ class SLAPReactionGenerator:
     def _try_reaction(self, product_type, product_mol):
         reactants = self.backwards_reactions[product_type].RunReactants((product_mol,))
         if len(reactants) > 0:
+            # sanitize before returning
+            [[Chem.SanitizeMol(m) for m in pair] for pair in reactants]
             return reactants, product_type
         return None, None
 
@@ -97,7 +104,7 @@ class SLAPReactionGenerator:
                 be returned.
 
         Returns:
-            list: A list of reactants leading to the specified product using the SLAP platform.
+            list: A list of reactants (as Mol objects) leading to the specified product using the SLAP platform.
         """
         if isinstance(product, str):
             product_mol = Chem.MolFromSmiles(product)
@@ -198,8 +205,15 @@ class SLAPReactionGenerator:
         return reaction[0]
 
     def generate_reactions_for_product(
-        self, product: Union[str, Chem.Mol], starting_materials: tuple = ()
-    ) -> List[ChemicalReaction]:
+        self,
+        product: Union[str, Chem.Mol],
+        starting_materials: tuple = (),
+        return_additional_info: bool = False,
+        return_strings: bool = False,
+    ) -> Union[
+        List[ChemicalReaction],
+        Tuple[List[ChemicalReaction], List[List[Chem.Mol]], List[str]],
+    ]:
         """
         Generates all possible SLAP reactions for a given product.
 
@@ -207,7 +221,10 @@ class SLAPReactionGenerator:
             product (str or Chem.Mol): Product of a SLAP reaction.
             starting_materials(tuple, optional): Allowed starting materials. If given, a reaction will only be
                 returned if both generated starting materials are contained in this tuple. Otherwise, this reaction will not
-                be returned.
+                be returned. Defaults to False.
+            return_additional_info (bool): Whether to additionally return the reactants and product type.
+            return_strings (bool): Whether to return the reactions as reactionSMILES strings (as opposed to RDKit
+                objects). Defaults to False.
 
         Returns:
             list: A list of ChemicalReaction objects representing the SLAP reactions leading to the given product.
@@ -216,7 +233,13 @@ class SLAPReactionGenerator:
         reactions = []
         for reactant_pair in reactants:
             reactions.append(self.generate_reaction(reactant_pair, product_type))
-        return reactions
+        if return_strings:
+            reactions = [ReactionToSmarts(reaction) for reaction in reactions]
+
+        if return_additional_info:
+            return reactions, reactants, [product_type for _ in reactions]
+        else:
+            return reactions
 
     def reactants_in_dataset(
         self,

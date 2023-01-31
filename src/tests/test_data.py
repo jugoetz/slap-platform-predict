@@ -4,6 +4,7 @@ from unittest import TestCase
 from rdkit import Chem
 from rdkit.Chem.rdChemReactions import ReactionToSmarts
 
+from src.data.dataloader import SLAPProductDataset
 from src.data.util import SLAPReactionGenerator
 from src.util.rdkit_util import canonicalize_smiles
 from src.util.definitions import DATA_ROOT
@@ -254,3 +255,55 @@ class TestSLAPReactionGenerator(TestCase):
             dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
         )
         self.assertTrue(result[1])
+
+
+class TestSLAPProductDataset(TestCase):
+    def setUp(self):
+        self.ipr_ph_morpholine = "CC(C)C1COCC(C2=CC=CC=C2)N1"  # both residues unseen in both morpholine SLAP and aldehyde
+        self.cy_et_piperazine = "CCC1NC(C2CCCCC2)CN(C(OCC)=O)C1"  # Cyclohexylformaldehyde is seen, as well as the cycloheyl piperazine SLAP
+        self.me_cyspiro_morpholine = "CC1COCC2(CCCCC2)N1"  # both options unseen
+        self.cnph_cnfph_morpholine = "N#CC1=CC=C([C@H]2COC[C@H](C3=CC=C(C(C#N)=C3)F)N2)C=C1"  # one reaction is in the training data. Both aldehydes are seen, but only the CNph is seen as morpholine SLAP
+        self.mebenzimidazole_oxazole_morpholine = "CN1C2=CC=CC=C2N=C1C3COCC(N3)C4=COC=N4"  # Both aldehydes are seen and the oxazole morpholine SLAP, but not the exact reaction.
+
+        self.smiles = [
+            self.ipr_ph_morpholine,
+            self.cy_et_piperazine,
+            self.me_cyspiro_morpholine,
+            self.cnph_cnfph_morpholine,
+            self.mebenzimidazole_oxazole_morpholine,
+        ]
+
+        self.problem_type = [
+            "2D",
+            "2D",
+            "1D_aldehyde",
+            "1D_SLAP",
+            "2D",
+            "known",
+            "1D_SLAP",
+            "1D_SLAP",
+            "0D",
+        ]
+        self.data = SLAPProductDataset(smiles=self.smiles)
+
+    def test_all_attributes_have_same_length(self):
+        self.assertTrue(
+            len(self.data.reactions)
+            == len(self.data.reactants)
+            == len(self.data.product_idxs)
+            == len(self.data.problem_type)
+        )
+
+    def test_problem_types_assigned_correctly(self):
+        for i, (problem_type_true, problem_type_infered) in enumerate(
+            zip(self.problem_type, self.data.problem_type)
+        ):
+            smiles = self.smiles[self.data.product_idxs[i]]
+            with self.subTest(
+                smiles=smiles,
+                slap_reagent_forming_aldehyde=Chem.MolToSmiles(
+                    self.data.reactants[i][0]
+                ),
+                aldehyde=Chem.MolToSmiles(self.data.reactants[i][1]),
+            ):
+                self.assertEqual(problem_type_true, problem_type_infered)

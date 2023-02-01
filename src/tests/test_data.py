@@ -1,11 +1,13 @@
 import os
 from unittest import TestCase
 
+import numpy as np
 from rdkit import Chem
+from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdChemReactions import ReactionToSmarts
 
 from src.data.dataloader import SLAPProductDataset
-from src.data.util import SLAPReactionGenerator
+from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
 from src.util.rdkit_util import canonicalize_smiles
 from src.util.definitions import DATA_ROOT
 
@@ -295,7 +297,7 @@ class TestSLAPProductDataset(TestCase):
         )
 
     def test_problem_types_assigned_correctly(self):
-        for i, (problem_type_true, problem_type_infered) in enumerate(
+        for i, (problem_type_true, problem_type_inferred) in enumerate(
             zip(self.problem_type, self.data.problem_type)
         ):
             smiles = self.smiles[self.data.product_idxs[i]]
@@ -306,4 +308,70 @@ class TestSLAPProductDataset(TestCase):
                 ),
                 aldehyde=Chem.MolToSmiles(self.data.reactants[i][1]),
             ):
-                self.assertEqual(problem_type_true, problem_type_infered)
+                self.assertEqual(problem_type_true, problem_type_inferred)
+
+
+class TestSLAPReactionSimilarityCalculator(TestCase):
+    def setUp(self):
+        self.aldehydes = ["CC=O", "C=CC=O", "C=CCC=O"]
+        self.slaps = [
+            "C[Si](C)(C)COCC(N)C1CCCC1",
+            "C[Si](C)(C)COCC(N)C1=CC=CC=C1",
+            "C[Si](C)(C)COCC(N)C1=CC=C(F)C(Cl)=C1",
+        ]
+        self.calculator = SLAPReactionSimilarityCalculator(self.slaps, self.aldehydes)
+
+    def test_calculate_similarity_from_maccs_input(self):
+        reactants_maccs = [
+            rdMolDescriptors.GetMACCSKeysFingerprint(Chem.MolFromSmiles(smi))
+            for smi in [self.slaps[0], self.aldehydes[0]]
+        ]
+        sim = self.calculator.calculate_similarity_rdkit(
+            reactants_maccs=reactants_maccs
+        )
+        # here we only want to see that the method works so we check the return type
+        print(sim)
+        self.assertTrue(
+            isinstance(sim, tuple)
+            and isinstance(sim[0], list)
+            and isinstance(sim[0][0], float)
+        )
+
+    def test_calculate_similarity_between_identical_structures_is_one(self):
+        for i, (slap_smi, aldehyde_smi) in enumerate(zip(self.slaps, self.aldehydes)):
+            with self.subTest(slap_smiles=slap_smi, aldehyde_smiles=aldehyde_smi):
+                sim = self.calculator.calculate_similarity_rdkit(
+                    reactants=(slap_smi, aldehyde_smi)
+                )
+                self.assertEqual(
+                    (sim[0][i], sim[1][i]),
+                    (1.0, 1.0),
+                )
+
+    def test_calculate_similarity_from_reaction_input(self):
+        sim = self.calculator.calculate_similarity_rdkit(
+            reaction="C[Si](C)(C)[CH2:8][O:7][CH2:6][CH:4]([c:3]1[cH:15][cH:17][c:19]([C:20]([CH3:21])([CH3:22])[CH3:23])[cH:18][cH:16]1)[NH2:5].O=[CH:2][c:1]1[cH:9][cH:11][c:13]([Cl:14])[cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][CH:4]([c:3]3[cH:15][cH:17][c:19]([C:20]([CH3:21])([CH3:22])[CH3:23])[cH:18][cH:16]3)[CH2:6][O:7][CH2:8]2)[cH:9][cH:11][c:13]([Cl:14])[cH:12][cH:10]1"
+        )
+        # here we only want to see that the method works so we check the return type
+        self.assertTrue(
+            isinstance(sim, tuple)
+            and isinstance(sim[0], list)
+            and isinstance(sim[0][0], float)
+        )
+
+    def test_calculate_similarity_scipy_from_maccs_input(self):
+        reactants_maccs = [
+            np.array(
+                rdMolDescriptors.GetMACCSKeysFingerprint(
+                    Chem.MolFromSmiles(smi)
+                ).ToList(),
+                ndmin=2,
+            )
+            for smi in [self.slaps[0], self.aldehydes[0]]
+        ]
+        sim = self.calculator.calculate_similarity_scipy(
+            reactants_maccs=reactants_maccs
+        )
+        # here we only want to see that the method works so we check the return type
+        print(sim)
+        self.assertTrue(isinstance(sim, tuple) and isinstance(sim[0], np.ndarray))

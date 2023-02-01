@@ -1,14 +1,20 @@
 import os
 from typing import List, Union, Tuple, Sequence, Optional, Any
 
+import numpy as np
 import pandas as pd
 from rdkit import Chem
+from rdkit import DataStructs
+from rdkit.DataStructs.cDataStructs import ExplicitBitVect
+from rdkit.Chem import MACCSkeys
 from rdkit.Chem.rdChemReactions import (
     ChemicalReaction,
     ReactionFromSmarts,
     SanitizeRxn,
     ReactionToSmarts,
 )
+
+from scipy.spatial.distance import rogerstanimoto, cdist
 
 from src.util.rdkit_util import (
     create_reaction_instance,
@@ -333,3 +339,146 @@ class SLAPReactionGenerator:
             reaction_in_dataset,
             reaction_outcomes,
         )
+
+
+class SLAPReactionSimilarityCalculator:
+    """
+    Used to calculate how similar a given SLAP reaction is to training data.
+
+    Similarity is assessed in the following way:
+    For both reactants separately, a MACCS key is generated, and Tanimoto distances with all the MACCS keys of the
+    reactants seen in the training data are calculated.
+    For two reactions to be considered similar, the following must hold:
+    -  Each reactant must have a similarity score >0.5 with >5% of the reactants in the training data
+
+    """
+
+    @staticmethod
+    def calculate_maccs(smiles):
+        arr = np.zeros((len(smiles), 167))
+        for i, smi in enumerate(smiles):
+            arr[i] = MACCSkeys.GenMACCSKeys(Chem.MolFromSmiles(smi))
+        return arr
+
+    @staticmethod
+    def calculate_maccs_to_list(smiles):
+        return [MACCSkeys.GenMACCSKeys(Chem.MolFromSmiles(smi)) for smi in smiles]
+
+    def __init__(self, slap_reactants, aldehyde_reactants):
+        self.slap_maccs_training = self.calculate_maccs(slap_reactants)
+        self.aldehyde_maccs_training = self.calculate_maccs(aldehyde_reactants)
+        self.slap_maccs_training_list = self.calculate_maccs_to_list(slap_reactants)
+        self.aldehyde_maccs_training_list = self.calculate_maccs_to_list(
+            aldehyde_reactants
+        )
+
+    def calculate_similarity_rdkit(
+        self,
+        reaction: str = None,
+        reactants: Sequence[str] = None,
+        reactants_maccs: Sequence[ExplicitBitVect] = None,
+    ) -> Tuple[List[float], List[float]]:
+        """
+        Calculates the similarity of a given reaction / reactant pair to the training data.
+        The reaction can be given as reactant MACCS keys (recommended for performance), as SMILES strings, or as a
+        reactionSMILES string.
+
+        """
+
+        # we use the try/except structure with some boilerplate here to provide the fastest processing when MACCS keys
+        # are given.
+        try:
+            slap_sim = DataStructs.BulkTanimotoSimilarity(
+                reactants_maccs[0], self.slap_maccs_training_list
+            )
+            aldehyde_sim = DataStructs.BulkTanimotoSimilarity(
+                reactants_maccs[1], self.aldehyde_maccs_training_list
+            )
+        except TypeError:
+            try:
+                reactants_maccs = self.calculate_maccs_to_list(reactants)
+                slap_sim = DataStructs.BulkTanimotoSimilarity(
+                    reactants_maccs[0], self.slap_maccs_training_list
+                )
+                aldehyde_sim = DataStructs.BulkTanimotoSimilarity(
+                    reactants_maccs[1], self.aldehyde_maccs_training_list
+                )
+            except TypeError:
+                try:
+                    rxn = ReactionFromSmarts(reaction)
+                    reactants = [
+                        Chem.MolToSmiles(Chem.Mol(reac)) for reac in rxn.GetReactants()
+                    ]
+                    reactants_maccs = self.calculate_maccs_to_list(reactants)
+                    slap_sim = DataStructs.BulkTanimotoSimilarity(
+                        reactants_maccs[0], self.slap_maccs_training_list
+                    )
+                    aldehyde_sim = DataStructs.BulkTanimotoSimilarity(
+                        reactants_maccs[1], self.aldehyde_maccs_training_list
+                    )
+                except TypeError:
+                    raise ValueError(
+                        "One of 'reaction', 'reactants' or 'reactants_maccs' must be provided."
+                    )
+
+        return slap_sim, aldehyde_sim
+
+    def calculate_similarity_scipy(
+        self,
+        reaction: str = None,
+        reactants: Sequence[str] = None,
+        reactants_maccs: Sequence[np.ndarray] = None,
+    ) -> Tuple[List[float], List[float]]:
+        """
+        Calculates the similarity of a given reaction / reactant pair to the training data.
+        The reaction can be given as reactant MACCS keys (recommended for performance), as SMILES strings, or as a
+        reactionSMILES string.
+
+        """
+
+        # we use the try/except structure with some boilerplate here to provide the fastest processing when MACCS keys
+        # are given.
+        try:
+            # compute the rogers-tanimoto distances between the reactants and the training data
+            slap_sim = (
+                -cdist(reactants_maccs[0], self.slap_maccs_training, "jaccard") + 1
+            )
+            aldehyde_sim = (
+                -cdist(reactants_maccs[1], self.aldehyde_maccs_training, "jaccard") + 1
+            )
+        except TypeError:
+            try:
+                raise NotImplementedError(
+                    "This input is untested. Provide MACCS keys as inputs or remove this line."
+                )
+                reactants_maccs = self.calculate_maccs(reactants)
+                slap_sim = (
+                    -cdist(reactants_maccs[0], self.slap_maccs_training, "jaccard") + 1
+                )
+                aldehyde_sim = (
+                    -cdist(reactants_maccs[1], self.aldehyde_maccs_training, "jaccard")
+                    + 1
+                )
+            except TypeError:
+                try:
+                    rxn = ReactionFromSmarts(reaction)
+                    reactants = [
+                        Chem.MolToSmiles(Chem.Mol(reac)) for reac in rxn.GetReactants()
+                    ]
+                    reactants_maccs = self.calculate_maccs(reactants)
+                    slap_sim = (
+                        -cdist(reactants_maccs[0], self.slap_maccs_training, "jaccard")
+                        + 1
+                    )
+                    aldehyde_sim = (
+                        -cdist(
+                            reactants_maccs[1], self.aldehyde_maccs_training, "jaccard"
+                        )
+                        + 1
+                    )
+                except TypeError:
+                    raise ValueError(
+                        "One of 'reaction', 'reactants' or 'reactants_maccs' must be provided."
+                    )
+
+        return slap_sim, aldehyde_sim

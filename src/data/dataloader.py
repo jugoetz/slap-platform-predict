@@ -19,6 +19,8 @@ from src.data.featurizers import (
     OneHotEncoder,
     FromFileFeaturizer,
 )
+from src.data.util import SLAPReactionGenerator
+from src.util.definitions import DATA_ROOT
 
 
 def collate_fn(
@@ -144,17 +146,26 @@ class SLAPDataset(DGLDataset):
             verbose=verbose,
         )
 
-    def process(self):
-        """Read data from csv file and generate graphs"""
+    def process(self, smiles: Optional[List[str]] = None):
+        """
+        Read reactionSMILES/SMILES data from csv file or optional argument and generate molecular graph / CGR.
+        If the reaction argument was True during __init__, we expect reactionSMILES and produce the condensed graph
+        of reaction (CGR). Else, we expect a single SMILES (product or intermediate) and produce the molecular graph.
 
-        csv_data = pd.read_csv(self.raw_path)
-        smiles = [csv_data[s] for s in self.smiles_columns]
+        Args:
+            smiles (list): A flat list of reactionSMILES or SMILES. If given, files specified during __init__ are
+                ignored. Defaults to None.
+        """
 
-        # Currently, we don't support having multiple inputs per data point
-        if len(smiles) > 1:
-            raise NotImplementedError("Multi-input prediction is not implemented.")
-        # ...which allows us to do this:
-        smiles = smiles[0]
+        if not smiles:
+            csv_data = pd.read_csv(self.raw_path)
+            smiles = [csv_data[s] for s in self.smiles_columns]
+
+            # Currently, we don't support having multiple inputs per data point
+            if len(smiles) > 1:
+                raise NotImplementedError("Multi-input prediction is not implemented.")
+            # ...which allows us to do this:
+            smiles = smiles[0]
 
         # clear previous data
         self.graphs = []
@@ -225,7 +236,7 @@ class SLAPDataset(DGLDataset):
         if self.label_column:
             self.labels = csv_data[self.label_column].values.tolist()
         else:
-            # allow having no labels, e.g. for prediction
+            # allow having no labels, e.g. for inference
             self.labels = [None for _ in smiles]
 
         # little safety net
@@ -276,3 +287,84 @@ class SLAPDataset(DGLDataset):
             else:
                 n_global_features += global_featurizer.feat_size
         return n_global_features
+
+
+class SLAPProductDataset:
+    """
+    A wrapper around SLAPDataset that simplifies loading a dataset for inference.
+
+    Where the SLAPDataset expects reactionSMILES as inputs which can take some effort to produce, this wrapper expects
+    only the SMILES corresponding to the product. From the product SMILES, it infers possible reactionSMILES leading to
+    the product (this can be two different reactionSMILES). It further annotates the SMILES with information about how
+    close it is to the data used to train the model.
+    """
+
+    def __init__(
+        self,
+        smiles: Optional[List[str]] = None,
+        file_path: Optional[os.PathLike] = None,
+        file_smiles_column: str = "SMILES",
+    ):
+        """
+        At least one of smiles and file_path has to be given. If both are given, the contents are concatenated.
+        Args:
+            smiles (list): Products of the SLAP reaction, given as SMILES.
+            file_path (os.PathLike): Path to csv file containing products of the SLAP reaction, given as SMILES.
+            file_smiles_column (str): Header of the column containing SMILES. Defaults to "SMILES"
+        """
+        # load the SMILES
+        self.smiles = []
+        if smiles is None and file_path is None:
+            raise ValueError("At least one of 'SMILES' and 'file_path' must be given.")
+        if smiles:
+            self.smiles.extend(smiles)
+        if file_path:
+            csv_data = pd.read_csv(file_path)
+            self.smiles.extend(csv_data[file_smiles_column])
+
+        # generate the reactions
+        self.reactions = []
+        self.reactants = []
+        self.product_types = []
+        self.product_idxs = []
+        self.problem_type = []
+        self.known_outcomes = []
+        reaction_generator = SLAPReactionGenerator()
+        for i, smi in enumerate(smiles):
+            (
+                reactions,
+                reactants,
+                product_type,
+            ) = reaction_generator.generate_reactions_for_product(
+                product=smi, return_additional_info=True, return_strings=True
+            )
+            self.reactions.extend(reactions)
+            self.reactants.extend(reactants)
+            self.product_types.extend(product_type)
+            self.product_idxs.extend([i for _ in reactions])
+
+        # determine the relation to the dataset
+        for reactant_pair, product_type in zip(self.reactants, self.product_types):
+            problem_type = reaction_generator.reactants_in_dataset(
+                reactant_pair,
+                product_type,
+                dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
+                use_cache=True,
+            )
+            if problem_type[2]:
+                self.problem_type.append("known")
+                self.known_outcomes.append(problem_type[3])
+            elif problem_type[0] and problem_type[1]:
+                self.problem_type.append("0D")
+                self.known_outcomes.append(problem_type[3])
+            elif problem_type[0]:
+                self.problem_type.append(
+                    "1D_aldehyde"
+                )  # the SLAP reagent is in training data
+                self.known_outcomes.append(problem_type[3])
+            elif problem_type[1]:
+                self.problem_type.append("1D_SLAP")  # the aldehyde is in training data
+                self.known_outcomes.append(problem_type[3])
+            else:
+                self.problem_type.append("2D")
+                self.known_outcomes.append(problem_type[3])

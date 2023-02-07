@@ -186,39 +186,68 @@ class SLAPReactionGenerator:
         return slap_reagent
 
     def generate_reaction(
-        self, reactant_pair: Sequence[Chem.Mol], product_type: str
-    ) -> ChemicalReaction:
+        self,
+        reactant_pair: Sequence[Chem.Mol],
+        product_type: Optional[str] = None,
+        return_slap: bool = False,
+    ) -> Union[ChemicalReaction, Tuple[ChemicalReaction, Chem.Mol]]:
         """
         Generates an atom-mapped, unbalanced reaction from the reactants and product type.
 
         Args:
-            reactant_pair (Sequence): Reactants of the SLAP reaction. Expects two aldehydes/ketones.
-                The first item in the sequence is used to generate the SLAP reagent. The second item must be an aldehyde.
-            product_type (str): Type of the product. Can be either "morpholine" or "piperazine" or "dimemorpholine" or "monomemorpholine" or "trialphamorpholine".
+            reactant_pair (Sequence): Reactants of the SLAP reaction. Expects two aldehydes/ketones or a SLAP reagent
+                and an aldehyde.
+                If product type is given, the first item in the sequence is used to generate the SLAP reagent.
+                If product type is not given, the first item must be a SLAP reagent.
+                The second item must always be an aldehyde.
+            product_type (str, optional): Type of the product. Can be either "morpholine" or "piperazine" or
+                "dimemorpholine" or "monomemorpholine" or "trialphamorpholine". If not given, a SLAP reagent is expected
+                in the reactant pair and generation of the SLAP reagent is skipped. Defaults to None.
+            return_slap (bool, optional): If True, the SLAP reagent will be returned as well. Defaults to False.
 
         Returns:
             ChemicalReaction: A ChemicalReaction object representing the SLAP reaction.
         """
 
-        slap = self.generate_slap_reagent(reactant_pair[0], product_type)
+        if product_type:
+            slap = self.generate_slap_reagent(reactant_pair[0], product_type)
+        else:
+            slap = reactant_pair[0]
         reaction = create_reaction_instance(
             self.slap_rxn, (reactant_pair[1], slap)
         )  # note that we give the slap reagent last because this is the way we defined the reaction.
         if len(reaction) > 1:
-            raise RuntimeError("More than one reaction found.")
+            raise RuntimeError(
+                f"More than one reaction found for SLAP reagent '{Chem.MolToSmiles(slap)}' "
+                f"and aldehyde '{Chem.MolToSmiles(reactant_pair[1])}'.\n"
+                f"Reactions:\n{chr(10).join(ReactionToSmarts(rxn) for rxn in reaction)}"
+            )
         elif len(reaction) == 0:
-            raise RuntimeError("No reaction found.")
-        return reaction[0]
+            raise RuntimeError(
+                f"No reaction found for SLAP reagent '{Chem.MolToSmiles(slap)}' and aldehyde '{Chem.MolToSmiles(reactant_pair[1])}'."
+            )
+
+        if return_slap:
+            return reaction[0], slap
+        else:
+            return reaction[0]
 
     def generate_reactions_for_product(
         self,
         product: Union[str, Chem.Mol],
         starting_materials: tuple = (),
         return_additional_info: bool = False,
-        return_strings: bool = False,
+        return_reaction_smarts: bool = False,
     ) -> Union[
+        List[str],
         List[ChemicalReaction],
-        Tuple[List[ChemicalReaction], List[List[Chem.Mol]], List[str]],
+        Tuple[List[str], List[List[Chem.Mol]], List[str]],
+        Tuple[
+            List[ChemicalReaction],
+            List[List[Chem.Mol]],
+            List[List[Chem.Mol]],
+            List[str],
+        ],
     ]:
         """
         Generates all possible SLAP reactions for a given product.
@@ -228,8 +257,8 @@ class SLAPReactionGenerator:
             starting_materials(tuple, optional): Allowed starting materials. If given, a reaction will only be
                 returned if both generated starting materials are contained in this tuple. Otherwise, this reaction will not
                 be returned. Defaults to False.
-            return_additional_info (bool): Whether to additionally return the reactants and product type.
-            return_strings (bool): Whether to return the reactions as reactionSMILES strings (as opposed to RDKit
+            return_additional_info (bool): Whether to additionally return the two carbonyl reactants, the slap reagent, and the product type.
+            return_reaction_smarts (bool): Whether to return the reactions as reactionSMILES strings (as opposed to RDKit
                 objects). Defaults to False.
 
         Returns:
@@ -237,20 +266,40 @@ class SLAPReactionGenerator:
         """
         reactants, product_type = self.generate_reactants(product, starting_materials)
         reactions = []
+        slaps = []
         for reactant_pair in reactants:
-            reactions.append(self.generate_reaction(reactant_pair, product_type))
-        if return_strings:
+            try:
+                rxn, slap = self.generate_reaction(
+                    reactant_pair, product_type, return_slap=True
+                )
+                reactions.append(rxn)
+                slaps.append(slap)
+            except RuntimeError:
+                raise RuntimeError(
+                    f"Encountered RuntimeError while generating reaction for product '{product}'."
+                )
+
+        if return_reaction_smarts:
             reactions = [ReactionToSmarts(reaction) for reaction in reactions]
 
         if return_additional_info:
-            return reactions, reactants, [product_type for _ in reactions]
+
+            return (
+                reactions,
+                [
+                    [slap, reactant_pair[1]]
+                    for slap, reactant_pair in zip(slaps, reactants)
+                ],
+                [product_type for _ in reactions],
+            )
         else:
             return reactions
 
     def reactants_in_dataset(
         self,
         reactant_pair: Sequence[Chem.Mol],
-        product_type: str,
+        form_slap_reagent: bool = False,
+        product_type: Optional[str] = None,
         dataset_path: Optional[Union[str, os.PathLike]] = None,
         use_cache=True,
     ) -> Tuple[bool, bool, bool, Optional[list]]:
@@ -258,11 +307,14 @@ class SLAPReactionGenerator:
         Check whether the reactants appear in a reference data set.
 
         Args:
-            dataset_path (str): Path to the dataset. Expects a CSV file with the columns "SMILES"
-            and "targets".
+            form_slap_reagent (bool): Whether to form the SLAP reagent from the first reactant. Set to False if a SLAP
+                    reagent is given or True if a aldehyde/ketone to form the SLAP reagent is given. Defaults to False.
+            dataset_path (str): Path to the dataset. Expects a CSV file with the columns "SMILES" and "targets".
             reactant_pair (Sequence): Reactants of the SLAP reaction. Expects two aldehydes/ketones.
-                The first item in the sequence is used to generate the SLAP reagent. The second item must be an aldehyde.
-            product_type (str): Type of the product. Can be either "morpholine" or "piperazine" or "dimemorpholine" or "monomemorpholine" or "trialphamorpholine".
+                    The first item in the sequence is used to generate the SLAP reagent. The second item must be an aldehyde.
+            product_type (str, optional): Type of the product. Can be either "morpholine" or "piperazine" or
+                    "dimemorpholine" or "monomemorpholine" or "trialphamorpholine". Only required if form_slap_reagent
+                    is True. Defaults to None.
 
 
         Returns:
@@ -310,9 +362,12 @@ class SLAPReactionGenerator:
                 data.append(reactants)
             dataset = data
 
-        slap_smiles = Chem.MolToSmiles(
-            self.generate_slap_reagent(reactant_pair[0], product_type)
-        )
+        if form_slap_reagent:
+            slap_smiles = Chem.MolToSmiles(
+                self.generate_slap_reagent(reactant_pair[0], product_type)
+            )
+        else:
+            slap_smiles = Chem.MolToSmiles(reactant_pair[0])
         aldehyde = Chem.MolToSmiles(reactant_pair[1])
         dataset_flattened = [item for sublist in dataset for item in sublist]
         dataset_reactants = ["+".join(sublist[:2]) for sublist in dataset]

@@ -7,6 +7,7 @@ from dgl.data import DGLDataset
 import torch
 import pandas as pd
 from dgllife.utils.featurizers import CanonicalAtomFeaturizer, CanonicalBondFeaturizer
+from rdkit import Chem
 
 from src.data.grapher import build_cgr, build_mol_graph
 from src.data.featurizers import (
@@ -299,6 +300,10 @@ class SLAPProductDataset:
     close it is to the data used to train the model.
     """
 
+    dummy_reactants = [
+        [Chem.MolFromSmiles("C"), Chem.MolFromSmiles("C")],
+    ]
+
     def __init__(
         self,
         smiles: Optional[List[str]] = None,
@@ -327,27 +332,50 @@ class SLAPProductDataset:
         self.reactants = []
         self.product_types = []
         self.product_idxs = []
+        self.invalid_idxs = []
         self.problem_type = []
         self.known_outcomes = []
         reaction_generator = SLAPReactionGenerator()
-        for i, smi in enumerate(smiles):
-            (
-                reactions,
-                reactants,
-                product_type,
-            ) = reaction_generator.generate_reactions_for_product(
-                product=smi, return_additional_info=True, return_strings=True
-            )
+        for i, smi in enumerate(self.smiles):
+            try:
+                (
+                    reactions,
+                    reactants,
+                    product_type,
+                ) = reaction_generator.generate_reactions_for_product(
+                    product=smi,
+                    return_additional_info=True,
+                    return_reaction_smarts=True,
+                )
+            except RuntimeError as e:
+                # if we can't generate a reaction, we use a dummy reaction (to not fuck up the indexing)
+                reactions = [
+                    "[C:1].[C:2]>>[C:1][C:2]",
+                ]
+                reactants = self.dummy_reactants
+                product_type = [
+                    "dummy",
+                ]
+                self.invalid_idxs.append(i)
+                print(
+                    f"WARNING: Could not generate reaction for product with index {i}. Using dummy reaction.\n"
+                    f"Error leading to this warning: {e}"
+                )
+
             self.reactions.extend(reactions)
             self.reactants.extend(reactants)
             self.product_types.extend(product_type)
             self.product_idxs.extend([i for _ in reactions])
 
+        print(
+            f"INFO: {len(self.smiles)} SMILES were read. For {len(self.invalid_idxs)} SMILES, no valid SLAP reaction could be generated."
+        )
+
         # determine the relation to the dataset
         for reactant_pair, product_type in zip(self.reactants, self.product_types):
             problem_type = reaction_generator.reactants_in_dataset(
                 reactant_pair,
-                product_type,
+                form_slap_reagent=False,
                 dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
                 use_cache=True,
             )
@@ -368,3 +396,14 @@ class SLAPProductDataset:
             else:
                 self.problem_type.append("2D")
                 self.known_outcomes.append(problem_type[3])
+
+    def process(self):
+        """
+        Process the reactions to obtain SLAPDatasets.
+
+        The "known" and the "0D" vs. rest information is used to determine which model will be applied.
+        In the "known" case, we look up the result in the training data and return the corresponding label.
+        In the "0D" case, we use the FFN/OHE model.
+        In the "1D" case, we use the D-MPNN/CGR model. (TODO: Do we need to train for 1D_SLAP?)
+        In the "2D" case, we use the D-MPNN/CGR model. (TODO: Which one here? Does it matter with the hparams?)
+        """

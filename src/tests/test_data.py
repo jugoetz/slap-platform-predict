@@ -310,6 +310,12 @@ class TestSLAPProductDataset(TestCase):
             ):
                 self.assertEqual(problem_type_true, problem_type_inferred)
 
+    def test_init_with_many_samples(self):
+        """Test that the init method works on a broad range of SMILES samples"""
+        sample_file = DATA_ROOT / "VL_sample.txt"
+        data = SLAPProductDataset(file_path=sample_file)
+        self.assertEqual(len(data.smiles), 10000)
+
 
 class TestSLAPReactionSimilarityCalculator(TestCase):
     def setUp(self):
@@ -330,7 +336,6 @@ class TestSLAPReactionSimilarityCalculator(TestCase):
             reactants_maccs=reactants_maccs
         )
         # here we only want to see that the method works so we check the return type
-        print(sim)
         self.assertTrue(
             isinstance(sim, tuple)
             and isinstance(sim[0], list)
@@ -373,5 +378,4 @@ class TestSLAPReactionSimilarityCalculator(TestCase):
             reactants_maccs=reactants_maccs
         )
         # here we only want to see that the method works so we check the return type
-        print(sim)
         self.assertTrue(isinstance(sim, tuple) and isinstance(sim[0], np.ndarray))

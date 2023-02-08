@@ -241,6 +241,7 @@ class TestSLAPReactionGenerator(TestCase):
         """Test that the reactants in dataset method identifies the slap reagent in the dataset"""
         result = self.generator.reactants_in_dataset(
             (Chem.MolFromSmiles("O=C1CCOCC1"), Chem.MolFromSmiles("CC(C=O)CCC")),
+            form_slap_reagent=True,
             product_type="trialphamorpholine",
             dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
         )

@@ -328,14 +328,33 @@ class TestSLAPReactionSimilarityCalculator(TestCase):
         ]
         self.calculator = SLAPReactionSimilarityCalculator(self.slaps, self.aldehydes)
 
+    def test_calculate_similarity_from_reaction_input(self):
+        sim = self.calculator.calculate_similarity(
+            reaction="C[Si](C)(C)[CH2:8][O:7][CH2:6][CH:4]([c:3]1[cH:15][cH:17][c:19]([C:20]([CH3:21])([CH3:22])[CH3:23])[cH:18][cH:16]1)[NH2:5].O=[CH:2][c:1]1[cH:9][cH:11][c:13]([Cl:14])[cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][CH:4]([c:3]3[cH:15][cH:17][c:19]([C:20]([CH3:21])([CH3:22])[CH3:23])[cH:18][cH:16]3)[CH2:6][O:7][CH2:8]2)[cH:9][cH:11][c:13]([Cl:14])[cH:12][cH:10]1"
+        )
+        # here we only want to see that the method works, so we check the return type
+        self.assertTrue(
+            isinstance(sim, tuple)
+            and isinstance(sim[0], list)
+            and isinstance(sim[0][0], float)
+        )
+
+    def test_calculate_similarity_from_reactant_input(self):
+        reactants = [self.slaps[0], self.aldehydes[0]]
+        sim = self.calculator.calculate_similarity(reactants=reactants)
+        # here we only want to see that the method works, so we check the return type
+        self.assertTrue(
+            isinstance(sim, tuple)
+            and isinstance(sim[0], list)
+            and isinstance(sim[0][0], float)
+        )
+
     def test_calculate_similarity_from_maccs_input(self):
         reactants_maccs = [
             rdMolDescriptors.GetMACCSKeysFingerprint(Chem.MolFromSmiles(smi))
             for smi in [self.slaps[0], self.aldehydes[0]]
         ]
-        sim = self.calculator.calculate_similarity_rdkit(
-            reactants_maccs=reactants_maccs
-        )
+        sim = self.calculator.calculate_similarity(reactants_maccs=reactants_maccs)
         # here we only want to see that the method works so we check the return type
         self.assertTrue(
             isinstance(sim, tuple)
@@ -346,37 +365,10 @@ class TestSLAPReactionSimilarityCalculator(TestCase):
     def test_calculate_similarity_between_identical_structures_is_one(self):
         for i, (slap_smi, aldehyde_smi) in enumerate(zip(self.slaps, self.aldehydes)):
             with self.subTest(slap_smiles=slap_smi, aldehyde_smiles=aldehyde_smi):
-                sim = self.calculator.calculate_similarity_rdkit(
+                sim = self.calculator.calculate_similarity(
                     reactants=(slap_smi, aldehyde_smi)
                 )
                 self.assertEqual(
                     (sim[0][i], sim[1][i]),
                     (1.0, 1.0),
                 )
-
-    def test_calculate_similarity_from_reaction_input(self):
-        sim = self.calculator.calculate_similarity_rdkit(
-            reaction="C[Si](C)(C)[CH2:8][O:7][CH2:6][CH:4]([c:3]1[cH:15][cH:17][c:19]([C:20]([CH3:21])([CH3:22])[CH3:23])[cH:18][cH:16]1)[NH2:5].O=[CH:2][c:1]1[cH:9][cH:11][c:13]([Cl:14])[cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][CH:4]([c:3]3[cH:15][cH:17][c:19]([C:20]([CH3:21])([CH3:22])[CH3:23])[cH:18][cH:16]3)[CH2:6][O:7][CH2:8]2)[cH:9][cH:11][c:13]([Cl:14])[cH:12][cH:10]1"
-        )
-        # here we only want to see that the method works so we check the return type
-        self.assertTrue(
-            isinstance(sim, tuple)
-            and isinstance(sim[0], list)
-            and isinstance(sim[0][0], float)
-        )
-
-    def test_calculate_similarity_scipy_from_maccs_input(self):
-        reactants_maccs = [
-            np.array(
-                rdMolDescriptors.GetMACCSKeysFingerprint(
-                    Chem.MolFromSmiles(smi)
-                ).ToList(),
-                ndmin=2,
-            )
-            for smi in [self.slaps[0], self.aldehydes[0]]
-        ]
-        sim = self.calculator.calculate_similarity_scipy(
-            reactants_maccs=reactants_maccs
-        )
-        # here we only want to see that the method works so we check the return type
-        self.assertTrue(isinstance(sim, tuple) and isinstance(sim[0], np.ndarray))

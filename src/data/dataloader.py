@@ -384,25 +384,31 @@ class SLAPProductDataset:
 
         # determine the relation to the dataset
         for reactant_pair, product_type in zip(self.reactants, self.product_types):
-            problem_type = reaction_generator.reactants_in_dataset(
-                reactant_pair,
-                form_slap_reagent=False,
-                use_cache=True,
-            )
-            if problem_type[2]:
-                self.problem_type.append("known")
-            elif problem_type[0] and problem_type[1]:
-                self.problem_type.append("0D")
-            elif problem_type[0]:  # the SLAP reagent is in training data
-                self.problem_type.append("1D_aldehyde")
-            elif problem_type[1]:  # the aldehyde is in training data
-                self.problem_type.append("1D_SLAP")
+            if (
+                product_type == "dummy"
+            ):  # dummy reaction indicates invalid reaction, do not process further
+                self.problem_type.append("invalid")
+                continue
             else:
-                # check if the reaction is similar to reactions in the training data
-                if similarity_calculator.is_similar(reactants=reactant_pair):
-                    self.problem_type.append("2D_similar")
+                problem_type = reaction_generator.reactants_in_dataset(
+                    reactant_pair,
+                    form_slap_reagent=False,
+                    use_cache=True,
+                )
+                if problem_type[2]:
+                    self.problem_type.append("known")
+                elif problem_type[0] and problem_type[1]:
+                    self.problem_type.append("0D")
+                elif problem_type[0]:  # the SLAP reagent is in training data
+                    self.problem_type.append("1D_aldehyde")
+                elif problem_type[1]:  # the aldehyde is in training data
+                    self.problem_type.append("1D_SLAP")
                 else:
-                    self.problem_type.append("2D_dissimilar")
+                    # check if the reaction is similar to reactions in the training data
+                    if similarity_calculator.is_similar(reactants=reactant_pair):
+                        self.problem_type.append("2D_similar")
+                    else:
+                        self.problem_type.append("2D_dissimilar")
 
             self.known_outcomes.append(problem_type[3])  # will be None if not "known"
 

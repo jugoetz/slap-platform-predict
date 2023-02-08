@@ -330,8 +330,8 @@ class TestSLAPProductDataset(TestCase):
     def test_init_with_many_samples(self):
         """Test that the init method works on a broad range of SMILES samples"""
         sample_file = DATA_ROOT / "VL_sample.txt"
-        data = SLAPProductDataset(file_path=sample_file)
-        self.assertEqual(len(data.smiles), 10000)
+        data = SLAPProductDataset(file_path=sample_file, file_smiles_column="smiles")
+        self.assertEqual(len(data.smiles), 8748)
 
 
 class TestSLAPReactionSimilarityCalculator(TestCase):

@@ -44,7 +44,7 @@ class SLAPReactionGenerator:
         "[#6H1:1]=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6:1]-[#7]"
     )
     _trialphamorpholine_slap_rxn = "[#6:1]-[#6](-[#6:2])=O>>[#6]-[#14](-[#6])(-[#6])-[#6]-[#8]-[#6]-[#6](-[#6:1])(-[#6:2])-[#7]"
-    _slap_rxn = "[#6:1]-[#6X3;H1,H0:2]=[#8].[#6:3]-[#6:4](-[#7:5])-[#6:6]-[#8,#7:7]-[#6:8]-[#14]>>[#6:1]-[#6:2]-1-[#6:8]-[#8,#7:7]-[#6:6]-[#6:4](-[#6:3])-[#7:5]-1"
+    _slap_rxn = "[#6:1]-[#6X3;H1:2]=[#8].[#6:3]-[#6:4](-[#7:5])-[#6:6]-[#8,#7:7]-[#6:8]-[#14]>>[#6:1]-[#6:2]-1-[#6:8]-[#8,#7:7]-[#6:6]-[#6:4](-[#6:3])-[#7:5]-1"
     dataset = None
 
     def __init__(self):
@@ -142,6 +142,8 @@ class SLAPReactionGenerator:
 
         # sanity check: there should never be more than two possible reactions
         if len(reactants) > 2:
+            # n.b. this can happen when the product contains more than one morpholine or piperazine ring.
+            # rather unlikely that anyone would want to make this, though.
             raise RuntimeError("More than two possible reactions found.")
 
         # check if the starting materials are allowed
@@ -217,6 +219,7 @@ class SLAPReactionGenerator:
             self.slap_rxn, (reactant_pair[1], slap)
         )  # note that we give the slap reagent last because this is the way we defined the reaction.
         if len(reaction) > 1:
+            # n.b. this can happen when a Si atom is present in the product
             raise RuntimeError(
                 f"More than one reaction found for SLAP reagent '{Chem.MolToSmiles(slap)}' "
                 f"and aldehyde '{Chem.MolToSmiles(reactant_pair[1])}'.\n"

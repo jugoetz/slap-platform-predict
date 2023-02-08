@@ -20,7 +20,7 @@ from src.data.featurizers import (
     OneHotEncoder,
     FromFileFeaturizer,
 )
-from src.data.util import SLAPReactionGenerator
+from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
 from src.util.definitions import DATA_ROOT
 
 
@@ -335,7 +335,18 @@ class SLAPProductDataset:
         self.invalid_idxs = []
         self.problem_type = []
         self.known_outcomes = []
+        # initialize the reaction generator with training data
         reaction_generator = SLAPReactionGenerator()
+        reaction_generator.initialize_dataset(
+            DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv", use_cache=True
+        )
+        # initialize the similarity calculator
+        slaps, aldehydes = reaction_generator.get_reactants_in_dataset()
+        similarity_calculator = SLAPReactionSimilarityCalculator(
+            slap_reactants=slaps, aldehyde_reactants=aldehydes
+        )
+
+        # generate the reactions
         for i, smi in enumerate(self.smiles):
             try:
                 (
@@ -376,26 +387,24 @@ class SLAPProductDataset:
             problem_type = reaction_generator.reactants_in_dataset(
                 reactant_pair,
                 form_slap_reagent=False,
-                dataset_path=DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv",
                 use_cache=True,
             )
             if problem_type[2]:
                 self.problem_type.append("known")
-                self.known_outcomes.append(problem_type[3])
             elif problem_type[0] and problem_type[1]:
                 self.problem_type.append("0D")
-                self.known_outcomes.append(problem_type[3])
-            elif problem_type[0]:
-                self.problem_type.append(
-                    "1D_aldehyde"
-                )  # the SLAP reagent is in training data
-                self.known_outcomes.append(problem_type[3])
-            elif problem_type[1]:
-                self.problem_type.append("1D_SLAP")  # the aldehyde is in training data
-                self.known_outcomes.append(problem_type[3])
+            elif problem_type[0]:  # the SLAP reagent is in training data
+                self.problem_type.append("1D_aldehyde")
+            elif problem_type[1]:  # the aldehyde is in training data
+                self.problem_type.append("1D_SLAP")
             else:
-                self.problem_type.append("2D")
-                self.known_outcomes.append(problem_type[3])
+                # check if the reaction is similar to reactions in the training data
+                if similarity_calculator.is_similar(reactants=reactant_pair):
+                    self.problem_type.append("2D_similar")
+                else:
+                    self.problem_type.append("2D_dissimilar")
+
+            self.known_outcomes.append(problem_type[3])  # will be None if not "known"
 
     def process(self):
         """

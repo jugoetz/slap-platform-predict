@@ -274,9 +274,10 @@ class SLAPReactionGenerator:
                 )
                 reactions.append(rxn)
                 slaps.append(slap)
-            except RuntimeError:
+            except RuntimeError as e:
                 raise RuntimeError(
-                    f"Encountered RuntimeError while generating reaction for product '{product}'."
+                    f"Encountered RuntimeError while generating reaction for product '{product}'.\n"
+                    f"Original error message: {e}"
                 )
 
         if return_reaction_smarts:
@@ -339,7 +340,6 @@ class SLAPReactionGenerator:
                     "dimemorpholine" or "monomemorpholine" or "trialphamorpholine". Only required if form_slap_reagent
                     is True. Defaults to None.
 
-
         Returns:
             tuple: The first item indicates whether the first reactant appears in the dataset. The second item indicates
                 whether the second reactant appears in the dataset. The third item indicated whether this exact combination appears in the data set.
@@ -348,7 +348,12 @@ class SLAPReactionGenerator:
         """
         if use_cache:
             if not self.dataset:
-                self.initialize_dataset(dataset_path, use_cache)
+                try:
+                    self.initialize_dataset(dataset_path, use_cache)
+                except ValueError:  # make this exception more verbose
+                    raise ValueError(
+                        "No dataset was provided and no cached dataset was found."
+                    )
             dataset = self.dataset
         else:
             dataset = self.initialize_dataset(dataset_path, use_cache)
@@ -386,6 +391,15 @@ class SLAPReactionGenerator:
             reaction_outcomes,
         )
 
+    def get_reactants_in_dataset(self) -> Tuple[List[str], List[str]]:
+        """Return the SMILES of unique reactants in the dataset."""
+        if not self.dataset:
+            raise RuntimeError("Initialize dataset first.")
+        slaps, aldehydes, _ = zip(*self.dataset)
+        slaps = list(set(slaps))
+        aldehydes = list(set(aldehydes))
+        return slaps, aldehydes
+
 
 class SLAPReactionSimilarityCalculator:
     """
@@ -401,15 +415,20 @@ class SLAPReactionSimilarityCalculator:
     def __init__(self, slap_reactants, aldehyde_reactants):
         """
         Args:
-            slap_reactants (list): List of SMILES strings of the SLAP reagents in the training data.
-            aldehyde_reactants (list): List of SMILES strings of the aldehydes in the training data.
+            slap_reactants (list): List of SMILES strings or rdkit.Chem.Mol of the SLAP reagents in the training data.
+            aldehyde_reactants (list): List of SMILES strings or rdkit.Chem.Mol of the aldehydes in the training data.
         """
         self.slap_maccs_training = self.calculate_maccs(slap_reactants)
         self.aldehyde_maccs_training = self.calculate_maccs(aldehyde_reactants)
 
     @staticmethod
-    def calculate_maccs(smiles) -> List[ExplicitBitVect]:
-        return [MACCSkeys.GenMACCSKeys(Chem.MolFromSmiles(smi)) for smi in smiles]
+    def calculate_maccs(molecules) -> List[ExplicitBitVect]:
+        if isinstance(molecules[0], str):
+            return [
+                MACCSkeys.GenMACCSKeys(Chem.MolFromSmiles(smi)) for smi in molecules
+            ]
+        else:
+            return [MACCSkeys.GenMACCSKeys(mol) for mol in molecules]
 
     def calculate_similarity(
         self,
@@ -469,3 +488,13 @@ class SLAPReactionSimilarityCalculator:
                     )
 
         return slap_sim, aldehyde_sim
+
+    def is_similar(self, **kwargs) -> bool:
+        """
+        Returns whether a given reaction is similar to the training data.
+        See `calculate_similarity` for details on how similarity is calculated and for arguments.
+        """
+        slap_sim, aldehyde_sim = self.calculate_similarity(**kwargs)
+        return (np.sum(np.array(slap_sim) > 0.5) / len(slap_sim) > 0.05) and (
+            np.sum(np.array(aldehyde_sim) > 0.5) / len(aldehyde_sim) > 0.05
+        )

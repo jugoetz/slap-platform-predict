@@ -225,6 +225,20 @@ class TestSLAPReactionGenerator(TestCase):
                 "[#6:9]-[#6:1](-[#6:10])-[#6:2]=[#8].[#6]-[Si](-[#6])(-[#6])-[#6:8]-[#8:7]-[#6:6]-[#6:4]1(-[#6:3]-[#6:11]-[#6:12]-[#6:13]-[#6:14]-1)-[#7:5]>>[#6:1](-[#6:2]1-[#6:8]-[#8:7]-[#6:6]-[#6:4]2(-[#6:3]-[#6:11]-[#6:12]-[#6:13]-[#6:14]-2)-[#7:5]-1)(-[#6:9])-[#6:10]",
             )
 
+    def test_reactants_in_dataset_raises_error(self):
+        """
+        Test that the reactants in dataset method raises a ValueError when the no dataset_path is given and the
+        generator was not initialized with a dataset.
+        """
+        with self.assertRaises(ValueError):
+            self.generator.reactants_in_dataset(
+                (
+                    Chem.MolFromSmiles("O=Cc1ccc(C(C)(C)C)cc1"),
+                    Chem.MolFromSmiles("CC(C=O)CCC"),
+                ),
+                product_type="morpholine",
+            )
+
     def test_reactants_in_dataset_returns_4_tuple(self):
         """Test that the reactants in dataset method runs and returns a length-4 tuple"""
         result = self.generator.reactants_in_dataset(
@@ -309,7 +323,9 @@ class TestSLAPProductDataset(TestCase):
                 ),
                 aldehyde=Chem.MolToSmiles(self.data.reactants[i][1]),
             ):
-                self.assertEqual(problem_type_true, problem_type_inferred)
+                self.assertTrue(
+                    problem_type_true in problem_type_inferred
+                )  # we use in to fuzzy match for 2D
 
     def test_init_with_many_samples(self):
         """Test that the init method works on a broad range of SMILES samples"""

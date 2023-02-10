@@ -147,6 +147,11 @@ class SLAPDataset(DGLDataset):
             verbose=verbose,
         )
 
+    def _load(self):
+        # Parent class calls this method during initialization. We don't want a call to process() here, so we remove
+        # this functionality. We lose caching with this, but don't need it here anyway
+        return
+
     def process(self, smiles: Optional[List[str]] = None):
         """
         Read reactionSMILES/SMILES data from csv file or optional argument and generate molecular graph / CGR.
@@ -157,7 +162,7 @@ class SLAPDataset(DGLDataset):
             smiles (list): A flat list of reactionSMILES or SMILES. If given, files specified during __init__ are
                 ignored. Defaults to None.
         """
-
+        csv_data = None
         if not smiles:
             csv_data = pd.read_csv(self.raw_path)
             smiles = [csv_data[s] for s in self.smiles_columns]
@@ -234,7 +239,7 @@ class SLAPDataset(DGLDataset):
                         )
                     ]
 
-        if self.label_column:
+        if self.label_column and csv_data:
             self.labels = csv_data[self.label_column].values.tolist()
         else:
             # allow having no labels, e.g. for inference
@@ -318,6 +323,10 @@ class SLAPProductDataset:
             file_smiles_column (str): Header of the column containing SMILES. Defaults to "SMILES"
         """
         # load the SMILES
+        self.dataset_0D = None
+        self.dataset_1D_aldehyde = None
+        self.dataset_1D_slap = None
+        self.dataset_2D = None
         self.smiles = []
         if smiles is None and file_path is None:
             raise ValueError("At least one of 'SMILES' and 'file_path' must be given.")
@@ -382,12 +391,23 @@ class SLAPProductDataset:
             f"INFO: {len(self.smiles)} SMILES were read. For {len(self.invalid_idxs)} SMILES, no valid SLAP reaction could be generated."
         )
 
+        # n.b. the following indices index self.reactants, not self.smiles
+        self.idx_known = []
+        self.idx_0D = []
+        self.idx_1D_aldehyde = []
+        self.idx_1D_slap = []
+        self.idx_2D_similar = []
+        self.idx_2D_dissimilar = []
+
         # determine the relation to the dataset
-        for reactant_pair, product_type in zip(self.reactants, self.product_types):
+        for i, (reactant_pair, product_type) in enumerate(
+            zip(self.reactants, self.product_types)
+        ):
             if (
                 product_type == "dummy"
             ):  # dummy reaction indicates invalid reaction, do not process further
                 self.problem_type.append("invalid")
+                self.known_outcomes.append(None)
                 continue
             else:
                 problem_type = reaction_generator.reactants_in_dataset(
@@ -397,28 +417,62 @@ class SLAPProductDataset:
                 )
                 if problem_type[2]:
                     self.problem_type.append("known")
+                    self.idx_known.append(i)
                 elif problem_type[0] and problem_type[1]:
                     self.problem_type.append("0D")
+                    self.idx_0D.append(i)
                 elif problem_type[0]:  # the SLAP reagent is in training data
                     self.problem_type.append("1D_aldehyde")
+                    self.idx_1D_aldehyde.append(i)
                 elif problem_type[1]:  # the aldehyde is in training data
                     self.problem_type.append("1D_SLAP")
+                    self.idx_1D_slap.append(i)
                 else:
                     # check if the reaction is similar to reactions in the training data
                     if similarity_calculator.is_similar(reactants=reactant_pair):
                         self.problem_type.append("2D_similar")
+                        self.idx_2D_similar.append(i)
                     else:
                         self.problem_type.append("2D_dissimilar")
+                        self.idx_2D_dissimilar.append(i)
 
             self.known_outcomes.append(problem_type[3])  # will be None if not "known"
 
-    def process(self):
+    def process(self, **kwargs):
         """
-        Process the reactions to obtain SLAPDatasets.
+        Process the reactionSMARTS to obtain SLAPDatasets.
+        After this, the object will expose the following attributes:
+            - dataset_0D: SLAPDataset containing the 0D reactions.
+            - dataset_1D_slap: SLAPDataset containing the 1D reactions with known aldehyde.
+            - dataset_1D_aldehyde: SLAPDataset containing the 1D reactions with known SLAP reagent.
+            - dataset_2D: SLAPDataset containing the 2D reactions.
+        Note that the "known" reactions are not included in any of these datasets. Their known outcomes are stored in
+        self.known_outcomes.
+        Depending on the input data, some of these datasets may be empty. In this case, the corresponding attribute will
+        be None.
 
-        The "known" and the "0D" vs. rest information is used to determine which model will be applied.
-        In the "known" case, we look up the result in the training data and return the corresponding label.
-        In the "0D" case, we use the FFN/OHE model.
-        In the "1D" case, we use the D-MPNN/CGR model. (TODO: Do we need to train for 1D_SLAP?)
-        In the "2D" case, we use the D-MPNN/CGR model. (TODO: Which one here? Does it matter with the hparams?)
+        Args:
+            **kwargs: keyword arguments passed to the SLAPDataset constructor.
         """
+        # all reactions with 0D problem type go into the same dataset
+        reactions_0D = [self.reactions[i] for i in self.idx_0D]
+        if len(reactions_0D) > 0:
+            self.dataset_0D = SLAPDataset(name="0D", **kwargs)
+            self.dataset_0D.process(reactions_0D)
+        # all reactions with 1D_aldehyde problem type go into the same dataset
+        reactions_1D_aldehyde = [self.reactions[i] for i in self.idx_1D_aldehyde]
+        if len(reactions_1D_aldehyde) > 0:
+            self.dataset_1D_aldehyde = SLAPDataset(name="1D_aldehyde", **kwargs)
+            self.dataset_1D_aldehyde.process(reactions_1D_aldehyde)
+        # all reactions with 1D_SLAP problem type go into the same dataset
+        reactions_1D_slap = [self.reactions[i] for i in self.idx_1D_slap]
+        if len(reactions_1D_slap) > 0:
+            self.dataset_1D_slap = SLAPDataset(name="1D_SLAP", **kwargs)
+            self.dataset_1D_slap.process([self.reactions[i] for i in self.idx_1D_slap])
+        # all reactions with 2D problem type go into the same dataset
+        reactions_2D = [
+            self.reactions[i] for i in self.idx_2D_similar + self.idx_2D_dissimilar
+        ]
+        if len(reactions_2D) > 0:
+            self.dataset_2D = SLAPDataset(name="2D", **kwargs)
+            self.dataset_2D.process(reactions_2D)

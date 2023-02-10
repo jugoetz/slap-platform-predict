@@ -333,6 +333,27 @@ class TestSLAPProductDataset(TestCase):
         data = SLAPProductDataset(file_path=sample_file, file_smiles_column="smiles")
         self.assertEqual(len(data.smiles), 8748)
 
+    def test_process_creates_correct_datasets(self):
+        """Test that after running the proces method, datasets have the appropriate sizes."""
+        self.data.process(reaction=True)
+        self.assertEqual(len(self.data.dataset_0D), self.problem_type.count("0D"))
+        self.assertEqual(
+            len(self.data.dataset_1D_slap), self.problem_type.count("1D_SLAP")
+        )
+        self.assertEqual(
+            len(self.data.dataset_1D_aldehyde), self.problem_type.count("1D_aldehyde")
+        )
+        self.assertEqual(len(self.data.dataset_2D), self.problem_type.count("2D"))
+
+    def test_process_on_broad_sample(self):
+        """Test that the process method works on a broad range of SMILES samples and we don't hit an exception"""
+        sample_file = DATA_ROOT / "VL_sample.txt"
+        data = SLAPProductDataset(file_path=sample_file, file_smiles_column="smiles")
+        data.process(
+            reaction=True,
+        )
+        self.assertTrue(True)  # if we don't hit an exception, we're good
+
 
 class TestSLAPReactionSimilarityCalculator(TestCase):
     def setUp(self):

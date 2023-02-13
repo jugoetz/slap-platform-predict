@@ -90,7 +90,7 @@ class SLAPDataset(DGLDataset):
                     atoms and edges are bonds). These graphs are homogeneous. If "bond_nodes", bond-node graphs will be
                     formed (both atoms and bonds are nodes, edges represent their connectivity).
                     Options: {"bond_edges", "bond_nodes"}. Default "bond_edges".
-            featurizers: Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop"}.
+            featurizers: Featurizers to use for atom and bond featurization. Options: {"dgllife", "chemprop", "custom"}.
                 Default "dgllife".
             smiles_columns: Headers of columns in data file that contain SMILES strings
             label_column: Header of the column in data file that contains the labels
@@ -438,7 +438,7 @@ class SLAPProductDataset:
 
             self.known_outcomes.append(problem_type[3])  # will be None if not "known"
 
-    def process(self, **kwargs):
+    def process(self, processing_kwargs):
         """
         Process the reactionSMARTS to obtain SLAPDatasets.
         After this, the object will expose the following attributes:
@@ -452,27 +452,50 @@ class SLAPProductDataset:
         be None.
 
         Args:
-            **kwargs: keyword arguments passed to the SLAPDataset constructor.
+            processing_kwargs: A dictionary of keyword arguments passed to the SLAPDataset constructor.
+                kwargs are given separately for each dataset. Hence, a dictionary of the form
+                {"dataset_0D": kwargs_0D,...} is expected.
         """
+
         # all reactions with 0D problem type go into the same dataset
         reactions_0D = [self.reactions[i] for i in self.idx_0D]
         if len(reactions_0D) > 0:
-            self.dataset_0D = SLAPDataset(name="0D", **kwargs)
+            try:
+                self.dataset_0D = SLAPDataset(
+                    name="0D", **processing_kwargs["dataset_0D"]
+                )
+            except KeyError:
+                self.dataset_0D = SLAPDataset(name="0D")
             self.dataset_0D.process(reactions_0D)
         # all reactions with 1D_aldehyde problem type go into the same dataset
         reactions_1D_aldehyde = [self.reactions[i] for i in self.idx_1D_aldehyde]
         if len(reactions_1D_aldehyde) > 0:
-            self.dataset_1D_aldehyde = SLAPDataset(name="1D_aldehyde", **kwargs)
+            try:
+                self.dataset_1D_aldehyde = SLAPDataset(
+                    name="1D_aldehyde", **processing_kwargs["dataset_1D_aldehyde"]
+                )
+            except KeyError:
+                self.dataset_1D_aldehyde = SLAPDataset(name="1D_aldehyde")
             self.dataset_1D_aldehyde.process(reactions_1D_aldehyde)
         # all reactions with 1D_SLAP problem type go into the same dataset
         reactions_1D_slap = [self.reactions[i] for i in self.idx_1D_slap]
         if len(reactions_1D_slap) > 0:
-            self.dataset_1D_slap = SLAPDataset(name="1D_SLAP", **kwargs)
+            try:
+                self.dataset_1D_slap = SLAPDataset(
+                    name="1D_SLAP", **processing_kwargs["dataset_1D_slap"]
+                )
+            except KeyError:
+                self.dataset_1D_slap = SLAPDataset(name="1D_SLAP")
             self.dataset_1D_slap.process([self.reactions[i] for i in self.idx_1D_slap])
         # all reactions with 2D problem type go into the same dataset
         reactions_2D = [
             self.reactions[i] for i in self.idx_2D_similar + self.idx_2D_dissimilar
         ]
         if len(reactions_2D) > 0:
-            self.dataset_2D = SLAPDataset(name="2D", **kwargs)
+            try:
+                self.dataset_2D = SLAPDataset(
+                    name="2D", **processing_kwargs["dataset_2D"]
+                )
+            except KeyError:
+                self.dataset_2D = SLAPDataset(name="2D")
             self.dataset_2D.process(reactions_2D)

@@ -335,7 +335,25 @@ class TestSLAPProductDataset(TestCase):
 
     def test_process_creates_correct_datasets(self):
         """Test that after running the proces method, datasets have the appropriate sizes."""
-        self.data.process(reaction=True)
+        self.data.process(
+            {
+                "dataset_0D": dict(
+                    reaction=True,
+                    global_features=[
+                        "OHE",
+                    ],
+                ),
+                "dataset_1D_slap": dict(
+                    reaction=True,
+                ),
+                "dataset_1D_aldehyde": dict(
+                    reaction=True,
+                ),
+                "dataset_2D": dict(
+                    reaction=True,
+                ),
+            }
+        )
         self.assertEqual(len(self.data.dataset_0D), self.problem_type.count("0D"))
         self.assertEqual(
             len(self.data.dataset_1D_slap), self.problem_type.count("1D_SLAP")
@@ -350,7 +368,23 @@ class TestSLAPProductDataset(TestCase):
         sample_file = DATA_ROOT / "VL_sample.txt"
         data = SLAPProductDataset(file_path=sample_file, file_smiles_column="smiles")
         data.process(
-            reaction=True,
+            {
+                "dataset_0D": dict(
+                    reaction=True,
+                    global_features=[
+                        "OHE",
+                    ],
+                ),
+                "dataset_1D_slap": dict(
+                    reaction=True,
+                ),
+                "dataset_1D_aldehyde": dict(
+                    reaction=True,
+                ),
+                "dataset_2D": dict(
+                    reaction=True,
+                ),
+            }
         )
         self.assertTrue(True)  # if we don't hit an exception, we're good
 

@@ -451,6 +451,19 @@ class OneHotEncoder:
 
         return one_hot_vector
 
+    def save_state_dict(self, path):
+        """Save the state of the encoder to a JSON file."""
+        # essentially save self.classes
+        with open(path, "w") as f:
+            json.dump(self.classes, f)
+        return
+
+    def load_state_dict(self, path):
+        """Load the state of the encoder from a JSON file."""
+        with open(path, "r") as f:
+            self.classes = json.load(f)
+        return
+
     @property
     def n_dimensions(self) -> int:
         return len(self.classes.keys())

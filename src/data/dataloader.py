@@ -1,4 +1,7 @@
 import os
+import pathlib
+import string
+import random
 from typing import List, Tuple, Optional, Union
 
 import dgl
@@ -21,7 +24,7 @@ from src.data.featurizers import (
     FromFileFeaturizer,
 )
 from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
-from src.util.definitions import DATA_ROOT
+from src.util.definitions import DATA_ROOT, LOG_DIR
 
 
 def collate_fn(
@@ -64,6 +67,7 @@ class SLAPDataset(DGLDataset):
         reaction=False,
         global_features: Union[str, List[str]] = None,
         global_features_file: Union[str, os.PathLike] = None,
+        global_featurizer_state_dict_path: Union[str, os.PathLike] = None,
         graph_type: str = "bond_edges",
         featurizers: str = "dgllife",
         smiles_columns: tuple = ("SMILES",),
@@ -86,6 +90,7 @@ class SLAPDataset(DGLDataset):
                 Default None.
             global_features_file: Path to file containing global features.
                 Only used with global_features=fromFile. Default None.
+            global_featurizer_state_dict_path: Path to state dict of featurizer to use for global features (only for OHE).
             graph_type: Type of graph to use. If "bond_edges", graphs are formed as molecular graphs (nodes are
                     atoms and edges are bonds). These graphs are homogeneous. If "bond_nodes", bond-node graphs will be
                     formed (both atoms and bonds are nodes, edges represent their connectivity).
@@ -110,6 +115,13 @@ class SLAPDataset(DGLDataset):
             []
         )  # container for global features e.g. rdkit or fingerprints
         self.global_featurizers = []  # container for global featurizers
+        if isinstance(global_featurizer_state_dict_path, str):
+            self.global_featurizer_state_dict_path = pathlib.Path(
+                global_featurizer_state_dict_path
+            )
+
+        else:
+            self.global_featurizer_state_dict_path = global_featurizer_state_dict_path
 
         # featurizer to obtain atom and bond features
         if featurizers == "dgllife":
@@ -207,12 +219,29 @@ class SLAPDataset(DGLDataset):
                 for global_featurizer in self.global_featurizers:
                     if isinstance(global_featurizer, OneHotEncoder):
                         # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
-                        smiles_reactant1 = [s.split(".")[0] for s in smiles]
-                        smiles_reactant2 = [
-                            s.split(">>")[0].split(".")[1] for s in smiles
-                        ]
-                        global_featurizer.add_dimension(smiles_reactant1)
-                        global_featurizer.add_dimension(smiles_reactant2)
+                        if self.global_featurizer_state_dict_path:
+                            # if we already have a state dict, we can load it
+                            global_featurizer.load_state_dict(
+                                self.global_featurizer_state_dict_path
+                            )
+                        else:
+                            # else, we need to set up the encoder with the list(s) of smiles it should encode
+                            smiles_reactant1 = [s.split(".")[0] for s in smiles]
+                            smiles_reactant2 = [
+                                s.split(">>")[0].split(".")[1] for s in smiles
+                            ]
+                            global_featurizer.add_dimension(smiles_reactant1)
+                            global_featurizer.add_dimension(smiles_reactant2)
+                            # and save the state of the encoder, to use it later for inference
+                            self.global_featurizer_state_dict_path = LOG_DIR / (
+                                "OHE_state_dict_"
+                                + "".join(random.choices(string.ascii_letters, k=16))
+                                + ".json"
+                            )
+                            global_featurizer.save_state_dict(
+                                self.global_featurizer_state_dict_path
+                            )
+
                     self.global_features = [
                         np.concatenate(i)
                         for i in zip(
@@ -228,8 +257,23 @@ class SLAPDataset(DGLDataset):
                 # if instead we get a single molecule, we just featurize for that
                 for global_featurizer in self.global_featurizers:
                     if isinstance(global_featurizer, OneHotEncoder):
-                        # for OHE, we need to set up the encoder with the list(s) of smiles it should encode
-                        global_featurizer.add_dimension(smiles)
+                        if self.global_featurizer_state_dict_path:
+                            # if we already have a state dict, we can load it
+                            global_featurizer.load_state_dict(
+                                self.global_featurizer_state_dict_path
+                            )
+                        else:
+                            # else, we need to set up the encoder with the list(s) of smiles it should encode
+                            global_featurizer.add_dimension(smiles)
+                            # and save the state of the encoder, to use it later for inference
+                            self.global_featurizer_state_dict_path = (
+                                LOG_DIR / "OHE_state_dict_"
+                                + "".join(random.choices(string.ascii_letters, k=16))
+                                + ".json"
+                            )
+                            global_featurizer.save_state_dict(
+                                self.global_featurizer_state_dict_path
+                            )
 
                     self.global_features = [
                         np.concatenate(i)
@@ -239,7 +283,7 @@ class SLAPDataset(DGLDataset):
                         )
                     ]
 
-        if self.label_column and csv_data:
+        if self.label_column is not None and csv_data is not None:
             self.labels = csv_data[self.label_column].values.tolist()
         else:
             # allow having no labels, e.g. for inference

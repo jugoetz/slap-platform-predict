@@ -7,6 +7,7 @@ from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdChemReactions import ReactionToSmarts
 
 from src.data.dataloader import SLAPProductDataset
+from src.data.featurizers import OneHotEncoder
 from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
 from src.util.rdkit_util import canonicalize_smiles
 from src.util.definitions import DATA_ROOT
@@ -443,3 +444,23 @@ class TestSLAPReactionSimilarityCalculator(TestCase):
                     (sim[0][i], sim[1][i]),
                     (1.0, 1.0),
                 )
+
+
+class TestOneHotEncoder(TestCase):
+    def setUp(self):
+        self.encoder = OneHotEncoder()
+        self.encoder.add_dimension(["C", "N", "O", "S", "P", "F", "Cl", "Br", "I"])
+
+    def test_save_state_dict(self):
+        """Test that a save/load roundtrip works"""
+        self.encoder.save_state_dict("test_save_state_dict.json")
+        encoder_from_file = OneHotEncoder()
+        encoder_from_file.load_state_dict("test_save_state_dict.json")
+        os.remove("test_save_state_dict.json")
+        self.assertEqual(self.encoder.n_dimensions, encoder_from_file.n_dimensions)
+
+    def test_process(self):
+        for i, smi in enumerate(["C", "N", "O", "S", "P", "F", "Cl", "Br", "I"]):
+            with self.subTest(smi=smi):
+                ohe = self.encoder.process(smi)
+                self.assertEqual(ohe.nonzero(), np.array([i]))

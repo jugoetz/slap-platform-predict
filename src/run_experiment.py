@@ -26,11 +26,19 @@ def run_training(args, hparams):
         global_features_file=hparams["decoder"]["global_features_file"],
         featurizers=hparams["encoder"]["featurizers"],
     )
+    data.process()
 
     # update config with data processing specifics
     hparams["atom_feature_size"] = data.atom_feature_size
     hparams["bond_feature_size"] = data.bond_feature_size
     hparams["global_feature_size"] = data.global_feature_size
+    if data.global_featurizer_state_dict_path:  # only in case of OHE
+        hparams["global_featurizer_state_dict_path"] = str(
+            data.global_featurizer_state_dict_path
+        )  # update with generated path
+        print(
+            f"OneHotEncoder state dict saved to {data.global_featurizer_state_dict_path}"
+        )
 
     # define split index files
     if args.split_indices:

@@ -449,7 +449,9 @@ class TestSLAPReactionSimilarityCalculator(TestCase):
 class TestOneHotEncoder(TestCase):
     def setUp(self):
         self.encoder = OneHotEncoder()
-        self.encoder.add_dimension(["C", "N", "O", "S", "P", "F", "Cl", "Br", "I"])
+        self.smiles = ["C", "N", "O", "S", "P", "F", "Cl", "Br", "I"]
+        self.encoder.add_dimension(self.smiles)
+        self.encoder.add_dimension(self.smiles)
 
     def test_save_state_dict(self):
         """Test that a save/load roundtrip works"""
@@ -460,7 +462,21 @@ class TestOneHotEncoder(TestCase):
         self.assertEqual(self.encoder.n_dimensions, encoder_from_file.n_dimensions)
 
     def test_process(self):
-        for i, smi in enumerate(["C", "N", "O", "S", "P", "F", "Cl", "Br", "I"]):
+        for i, smi in enumerate(self.smiles):
             with self.subTest(smi=smi):
-                ohe = self.encoder.process(smi)
-                self.assertEqual(ohe.nonzero(), np.array([i]))
+                ohe = self.encoder.process(smi, smi)
+                self.assertTrue(
+                    np.all(ohe.nonzero() == np.array([i, i + len(self.smiles)]))
+                )
+
+    def test_process_after_save_load(self):
+        self.encoder.save_state_dict("test_process_after_save_load.json")
+        encoder_from_file = OneHotEncoder()
+        encoder_from_file.load_state_dict("test_process_after_save_load.json")
+        os.remove("test_process_after_save_load.json")
+        for i, smi in enumerate(self.smiles):
+            with self.subTest(smi=smi):
+                ohe = encoder_from_file.process(smi, smi)
+                self.assertTrue(
+                    np.all(ohe.nonzero() == np.array([i, i + len(self.smiles)]))
+                )

@@ -454,14 +454,19 @@ class OneHotEncoder:
     def save_state_dict(self, path):
         """Save the state of the encoder to a JSON file."""
         # essentially save self.classes
+        # there is a catch here: json serializes int dict keys to strings. We take care of that in the load_state_dict
+        # method
         with open(path, "w") as f:
             json.dump(self.classes, f)
         return
 
     def load_state_dict(self, path):
         """Load the state of the encoder from a JSON file."""
+        # essentially load self.classes
+        # there is a catch here: json serializes int dict keys to strings. We interpret the keys as ints here.
         with open(path, "r") as f:
-            self.classes = json.load(f)
+            state_dict_with_string_keys = json.load(f)
+        self.classes = {int(k): v for k, v in state_dict_with_string_keys.items()}
         return
 
     @property

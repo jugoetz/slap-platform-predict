@@ -399,7 +399,8 @@ class OneHotEncoder:
     Molecule featurization with one-hot vector
     """
 
-    classes = {}
+    def __init__(self):
+        self.classes = {}
 
     def add_dimension(self, smiles: list):
         """

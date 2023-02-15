@@ -484,6 +484,10 @@ class SLAPProductDataset:
 
             self.known_outcomes.append(problem_type[3])  # will be None if not "known"
 
+        # make sure indices are used in canonical order across the class
+        self.idx_1D = self.idx_1D_slap + self.idx_1D_aldehyde
+        self.idx_2D = self.idx_2D_similar + self.idx_2D_dissimilar
+
     def process(self, processing_kwargs):
         """
         Process the reactionSMILES to obtain SLAPDatasets.
@@ -534,9 +538,7 @@ class SLAPProductDataset:
                 self.dataset_1D_slap = SLAPDataset(name="1D_SLAP")
             self.dataset_1D_slap.process([self.reactions[i] for i in self.idx_1D_slap])
         # all reactions with 2D problem type go into the same dataset
-        reactions_2D = [
-            self.reactions[i] for i in self.idx_2D_similar + self.idx_2D_dissimilar
-        ]
+        reactions_2D = [self.reactions[i] for i in self.idx_2D]
         if len(reactions_2D) > 0:
             try:
                 self.dataset_2D = SLAPDataset(

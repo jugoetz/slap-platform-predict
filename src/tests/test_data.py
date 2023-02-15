@@ -4,7 +4,7 @@ from unittest import TestCase
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
-from rdkit.Chem.rdChemReactions import ReactionToSmarts
+from rdkit.Chem.rdChemReactions import ReactionToSmiles
 
 from src.data.dataloader import SLAPProductDataset
 from src.data.featurizers import OneHotEncoder
@@ -144,8 +144,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "morpholine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:9]-[#6:1](-[#6:10])-[#6:2]=[#8].[#6]-[Si](-[#6])(-[#6])-[#6:8]-[#8:7]-[#6:6]-[#6:4](-[#7:5])-[#6:3]1:[#6:11]:[#6:13]:[#6:15]:[#6:14]:[#6:12]:1>>[#6:1](-[#6:2]1-[#6:8]-[#8:7]-[#6:6]-[#6:4](-[#6:3]2:[#6:11]:[#6:13]:[#6:15]:[#6:14]:[#6:12]:2)-[#7:5]-1)(-[#6:9])-[#6:10]",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][O:7][CH2:6][CH:4]([c:3]1[cH:11][cH:13][cH:15][cH:14][cH:12]1)[NH2:5].O=[CH:2][CH:1]([CH3:9])[CH3:10]>>[CH:1]([CH:2]1[NH:5][CH:4]([c:3]2[cH:11][cH:13][cH:15][cH:14][cH:12]2)[CH2:6][O:7][CH2:8]1)([CH3:9])[CH3:10]",
             )
         with self.subTest("Reaction for benzaldehyde + isobutanal morpholine SLAP"):
             reaction = self.generator.generate_reaction(
@@ -156,8 +156,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "morpholine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:10]1:[#6:12]:[#6:13]:[#6:11]:[#6:9]:[#6:1]:1-[#6:2]=[#8].[#6]-[Si](-[#6])(-[#6])-[#6:8]-[#8:7]-[#6:6]-[#6:4](-[#7:5])-[#6:3](-[#6:14])-[#6:15]>>[#6:1]1(-[#6:2]2-[#6:8]-[#8:7]-[#6:6]-[#6:4](-[#6:3](-[#6:14])-[#6:15])-[#7:5]-2):[#6:9]:[#6:11]:[#6:13]:[#6:12]:[#6:10]:1",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][O:7][CH2:6][CH:4]([CH:3]([CH3:14])[CH3:15])[NH2:5].O=[CH:2][c:1]1[cH:9][cH:11][cH:13][cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][CH:4]([CH:3]([CH3:14])[CH3:15])[CH2:6][O:7][CH2:8]2)[cH:9][cH:11][cH:13][cH:12][cH:10]1",
             )
         with self.subTest(
             "Reaction for benzaldehyde + isobutanal monomemorpholine SLAP"
@@ -170,8 +170,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "monomemorpholine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:10]1:[#6:12]:[#6:13]:[#6:11]:[#6:9]:[#6:1]:1-[#6:2]=[#8].[#6:16]-[#6:6](-[#6:4](-[#7:5])-[#6:3](-[#6:14])-[#6:15])-[#8:7]-[#6:8]-[Si](-[#6])(-[#6])-[#6]>>[#6:1]1(-[#6:2]2-[#6:8]-[#8:7]-[#6:6](-[#6:4](-[#6:3](-[#6:14])-[#6:15])-[#7:5]-2)-[#6:16]):[#6:9]:[#6:11]:[#6:13]:[#6:12]:[#6:10]:1",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][O:7][CH:6]([CH:4]([CH:3]([CH3:14])[CH3:15])[NH2:5])[CH3:16].O=[CH:2][c:1]1[cH:9][cH:11][cH:13][cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][CH:4]([CH:3]([CH3:14])[CH3:15])[CH:6]([CH3:16])[O:7][CH2:8]2)[cH:9][cH:11][cH:13][cH:12][cH:10]1",
             )
         with self.subTest("Reaction for benzaldehyde + isobutanal piperazine SLAP"):
             reaction = self.generator.generate_reaction(
@@ -182,8 +182,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "piperazine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:10]1:[#6:12]:[#6:13]:[#6:11]:[#6:9]:[#6:1]:1-[#6:2]=[#8].[#6:20]-[#6:19]-[#8:17]-[#6:16](=[#8:18])-[#7:7](-[#6:6]-[#6:4](-[#7:5])-[#6:3](-[#6:14])-[#6:15])-[#6:8]-[Si](-[#6])(-[#6])-[#6]>>[#6:1]1(-[#6:2]2-[#6:8]-[#7:7](-[#6:6]-[#6:4](-[#6:3](-[#6:14])-[#6:15])-[#7:5]-2)-[#6:16](-[#8:17]-[#6:19]-[#6:20])=[#8:18]):[#6:9]:[#6:11]:[#6:13]:[#6:12]:[#6:10]:1",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][N:7]([CH2:6][CH:4]([CH:3]([CH3:14])[CH3:15])[NH2:5])[C:16]([O:17][CH2:19][CH3:20])=[O:18].O=[CH:2][c:1]1[cH:9][cH:11][cH:13][cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][CH:4]([CH:3]([CH3:14])[CH3:15])[CH2:6][N:7]([C:16]([O:17][CH2:19][CH3:20])=[O:18])[CH2:8]2)[cH:9][cH:11][cH:13][cH:12][cH:10]1",
             )
         with self.subTest("Reaction for isobutanal + benzaldehyde dimemorpholine SLAP"):
             reaction = self.generator.generate_reaction(
@@ -194,8 +194,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "dimemorpholine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:9]-[#6:1](-[#6:10])-[#6:2]=[#8].[#6:16]-[#6:6](-[#6:17])(-[#6:4](-[#7:5])-[#6:3]1:[#6:11]:[#6:13]:[#6:15]:[#6:14]:[#6:12]:1)-[#8:7]-[#6:8]-[Si](-[#6])(-[#6])-[#6]>>[#6:1](-[#6:2]1-[#6:8]-[#8:7]-[#6:6](-[#6:4](-[#6:3]2:[#6:11]:[#6:13]:[#6:15]:[#6:14]:[#6:12]:2)-[#7:5]-1)(-[#6:16])-[#6:17])(-[#6:9])-[#6:10]",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][O:7][C:6]([CH:4]([c:3]1[cH:11][cH:13][cH:15][cH:14][cH:12]1)[NH2:5])([CH3:16])[CH3:17].O=[CH:2][CH:1]([CH3:9])[CH3:10]>>[CH:1]([CH:2]1[NH:5][CH:4]([c:3]2[cH:11][cH:13][cH:15][cH:14][cH:12]2)[C:6]([CH3:16])([CH3:17])[O:7][CH2:8]1)([CH3:9])[CH3:10]",
             )
         with self.subTest(
             "Reaction for benzaldehyde + cyclohexanone spiromorpholine SLAP"
@@ -208,8 +208,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "trialphamorpholine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:10]1:[#6:12]:[#6:13]:[#6:11]:[#6:9]:[#6:1]:1-[#6:2]=[#8].[#6]-[Si](-[#6])(-[#6])-[#6:8]-[#8:7]-[#6:6]-[#6:4]1(-[#6:3]-[#6:14]-[#6:15]-[#6:16]-[#6:17]-1)-[#7:5]>>[#6:1]1(-[#6:2]2-[#6:8]-[#8:7]-[#6:6]-[#6:4]3(-[#6:3]-[#6:14]-[#6:15]-[#6:16]-[#6:17]-3)-[#7:5]-2):[#6:9]:[#6:11]:[#6:13]:[#6:12]:[#6:10]:1",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][O:7][CH2:6][C:4]1([NH2:5])[CH2:3][CH2:14][CH2:15][CH2:16][CH2:17]1.O=[CH:2][c:1]1[cH:9][cH:11][cH:13][cH:12][cH:10]1>>[c:1]1([CH:2]2[NH:5][C:4]3([CH2:3][CH2:14][CH2:15][CH2:16][CH2:17]3)[CH2:6][O:7][CH2:8]2)[cH:9][cH:11][cH:13][cH:12][cH:10]1",
             )
         with self.subTest(
             "Reaction for isobutanal + cyclohexanone spiromorpholine SLAP"
@@ -222,8 +222,8 @@ class TestSLAPReactionGenerator(TestCase):
                 "trialphamorpholine",
             )
             self.assertEqual(
-                ReactionToSmarts(reaction),
-                "[#6:9]-[#6:1](-[#6:10])-[#6:2]=[#8].[#6]-[Si](-[#6])(-[#6])-[#6:8]-[#8:7]-[#6:6]-[#6:4]1(-[#6:3]-[#6:11]-[#6:12]-[#6:13]-[#6:14]-1)-[#7:5]>>[#6:1](-[#6:2]1-[#6:8]-[#8:7]-[#6:6]-[#6:4]2(-[#6:3]-[#6:11]-[#6:12]-[#6:13]-[#6:14]-2)-[#7:5]-1)(-[#6:9])-[#6:10]",
+                ReactionToSmiles(reaction),
+                "C[Si](C)(C)[CH2:8][O:7][CH2:6][C:4]1([NH2:5])[CH2:3][CH2:11][CH2:12][CH2:13][CH2:14]1.O=[CH:2][CH:1]([CH3:9])[CH3:10]>>[CH:1]([CH:2]1[NH:5][C:4]2([CH2:3][CH2:11][CH2:12][CH2:13][CH2:14]2)[CH2:6][O:7][CH2:8]1)([CH3:9])[CH3:10]",
             )
 
     def test_reactants_in_dataset_raises_error(self):
@@ -330,7 +330,7 @@ class TestSLAPProductDataset(TestCase):
 
     def test_init_with_many_samples(self):
         """Test that the init method works on a broad range of SMILES samples"""
-        sample_file = DATA_ROOT / "VL_sample.txt"
+        sample_file = DATA_ROOT / "VL_sample.csv"
         data = SLAPProductDataset(file_path=sample_file, file_smiles_column="smiles")
         self.assertEqual(len(data.smiles), 8748)
 
@@ -366,7 +366,7 @@ class TestSLAPProductDataset(TestCase):
 
     def test_process_on_broad_sample(self):
         """Test that the process method works on a broad range of SMILES samples and we don't hit an exception"""
-        sample_file = DATA_ROOT / "VL_sample.txt"
+        sample_file = DATA_ROOT / "VL_sample.csv"
         data = SLAPProductDataset(file_path=sample_file, file_smiles_column="smiles")
         data.process(
             {

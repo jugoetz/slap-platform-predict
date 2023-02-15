@@ -1,5 +1,5 @@
 import os
-from typing import List, Union, Tuple, Sequence, Optional, Any
+from typing import List, Union, Tuple, Sequence, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,10 +11,8 @@ from rdkit.Chem.rdChemReactions import (
     ChemicalReaction,
     ReactionFromSmarts,
     SanitizeRxn,
-    ReactionToSmarts,
+    ReactionToSmiles,
 )
-
-from scipy.spatial.distance import rogerstanimoto, cdist
 
 from src.util.rdkit_util import (
     create_reaction_instance,
@@ -223,7 +221,7 @@ class SLAPReactionGenerator:
             raise RuntimeError(
                 f"More than one reaction found for SLAP reagent '{Chem.MolToSmiles(slap)}' "
                 f"and aldehyde '{Chem.MolToSmiles(reactant_pair[1])}'.\n"
-                f"Reactions:\n{chr(10).join(ReactionToSmarts(rxn) for rxn in reaction)}"
+                f"Reactions:\n{chr(10).join(ReactionToSmiles(rxn) for rxn in reaction)}"
             )
         elif len(reaction) == 0:
             raise RuntimeError(
@@ -240,7 +238,7 @@ class SLAPReactionGenerator:
         product: Union[str, Chem.Mol],
         starting_materials: tuple = (),
         return_additional_info: bool = False,
-        return_reaction_smarts: bool = False,
+        return_reaction_smiles: bool = False,
     ) -> Union[
         List[str],
         List[ChemicalReaction],
@@ -261,7 +259,7 @@ class SLAPReactionGenerator:
                 returned if both generated starting materials are contained in this tuple. Otherwise, this reaction will not
                 be returned. Defaults to False.
             return_additional_info (bool): Whether to additionally return the two carbonyl reactants, the slap reagent, and the product type.
-            return_reaction_smarts (bool): Whether to return the reactions as reactionSMILES strings (as opposed to RDKit
+            return_reaction_smiles (bool): Whether to return the reactions as reactionSMILES strings (as opposed to RDKit
                 objects). Defaults to False.
 
         Returns:
@@ -283,8 +281,8 @@ class SLAPReactionGenerator:
                     f"Original error message: {e}"
                 )
 
-        if return_reaction_smarts:
-            reactions = [ReactionToSmarts(reaction) for reaction in reactions]
+        if return_reaction_smiles:
+            reactions = [ReactionToSmiles(reaction) for reaction in reactions]
 
         if return_additional_info:
 

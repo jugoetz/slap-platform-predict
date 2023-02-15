@@ -225,6 +225,8 @@ class SLAPDataset(DGLDataset):
                                 self.global_featurizer_state_dict_path
                             )
                         else:
+                            # sanity check: the OneHotEncoder should not have been initialized before
+                            assert global_featurizer.n_dimensions == 0
                             # else, we need to set up the encoder with the list(s) of smiles it should encode
                             smiles_reactant1 = [s.split(".")[0] for s in smiles]
                             smiles_reactant2 = [
@@ -409,7 +411,7 @@ class SLAPProductDataset:
                 ) = reaction_generator.generate_reactions_for_product(
                     product=smi,
                     return_additional_info=True,
-                    return_reaction_smarts=True,
+                    return_reaction_smiles=True,
                 )
             except RuntimeError as e:
                 # if we can't generate a reaction, we use a dummy reaction (to not fuck up the indexing)
@@ -484,7 +486,7 @@ class SLAPProductDataset:
 
     def process(self, processing_kwargs):
         """
-        Process the reactionSMARTS to obtain SLAPDatasets.
+        Process the reactionSMILES to obtain SLAPDatasets.
         After this, the object will expose the following attributes:
             - dataset_0D: SLAPDataset containing the 0D reactions.
             - dataset_1D_slap: SLAPDataset containing the 1D reactions with known aldehyde.

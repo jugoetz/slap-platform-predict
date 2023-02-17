@@ -456,21 +456,26 @@ class SLAPProductDataset:
                 self.known_outcomes.append(None)
                 continue
             else:
-                problem_type = reaction_generator.reactants_in_dataset(
+                (
+                    slap_in_dataset,
+                    aldehyde_in_dataset,
+                    reaction_in_dataset,
+                    reaction_outcomes,
+                ) = reaction_generator.reactants_in_dataset(
                     reactant_pair,
                     form_slap_reagent=False,
                     use_cache=True,
                 )
-                if problem_type[2]:
+                if reaction_in_dataset:
                     self.problem_type.append("known")
                     self.idx_known.append(i)
-                elif problem_type[0] and problem_type[1]:
+                elif slap_in_dataset and aldehyde_in_dataset:
                     self.problem_type.append("0D")
                     self.idx_0D.append(i)
-                elif problem_type[0]:  # the SLAP reagent is in training data
+                elif slap_in_dataset:  # the SLAP reagent is in training data
                     self.problem_type.append("1D_aldehyde")
                     self.idx_1D_aldehyde.append(i)
-                elif problem_type[1]:  # the aldehyde is in training data
+                elif aldehyde_in_dataset:  # the aldehyde is in training data
                     self.problem_type.append("1D_SLAP")
                     self.idx_1D_slap.append(i)
                 else:
@@ -482,7 +487,7 @@ class SLAPProductDataset:
                         self.problem_type.append("2D_dissimilar")
                         self.idx_2D_dissimilar.append(i)
 
-            self.known_outcomes.append(problem_type[3])  # will be None if not "known"
+            self.known_outcomes.append(reaction_outcomes)  # will be None if not "known"
 
         # make sure indices are used in canonical order across the class
         self.idx_1D = self.idx_1D_slap + self.idx_1D_aldehyde

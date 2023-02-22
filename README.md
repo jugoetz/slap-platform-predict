@@ -4,26 +4,56 @@ conda env create -f environment.yaml
 ```
 
 ---
+## Usage (Use our trained models to make a prediction)
 
-## Usage
+You will need a CSV-file containing a column `smiles` containing the SMILES strings of your query molecules.
+The CSV-file can contain arbitrary additional columns, one containing an identifier is recommended.
+
+Start the jupyter server with ```$ jupyter-notebook```.
+
+Open jupyter notebook `notebooks/inference.ipynb`.
+
+Follow the instructions there.
+
+
+## Usage (Training/inference on new data)
 ```bash
-python run.py --config <path_to_config_file>
-```
-Will run train and evaluate a model under cross-validation.
+# Train and evaluate a model under cross-validation:
+python run.py train --config CONFIG --data_path DATA_PATH
 
-Optional flags:
-- ```--hparam_optimization```: Run Bayesian optimization of hyperparameters
-  - ```--hparam_config_path <path_to_file>```: Config file for hyperparameter optimization bounds
-  - ```--hparam_n_iter <n>```: Number of iterations for hyperparameter optimization
+# For information on optional arguments use:
+python run.py train -h
+```
+
+
+```bash
+# Make predictions using a trained model:
+python run.py predict [-h] --config CONFIG --data_path DATA_PATH --model_path MODEL_PATH
+
+# For information on optional arguments use:
+python run.py predict -h
+```
+
 
 ### Data
-Data sets are read from `$PROJECT_ROOT/data`. The data sets must be CSV files with one column `SMILES` and one column `targets`.
+Data sets are read from `DATA_PATH`. The data sets must be CSV files with one column `SMILES` and one column `targets`.
+Depending on the model configuration the `SMILES` column should contain SMILES strings of the intermediate or
+atom-mapped, unbalanced reactionSMILES strings of the reaction. In the context of the paper, the latter option is used.
+The `targets` column should contain value `0` or `1` for unsuccessful and successful reactions, respectively.
 
-Splits for the data sets have to be provided as five separate CSV files per fold, e.g.,
-`fold0_val.csv`, `fold0_test_0D.csv` (currently, these names are hardcoded into `run_experiment.py`).
+Splits for the data sets can be provided as five separate CSV files per fold, e.g.,
+`fold0_val.csv`, `fold0_test_0D.csv` if the `predefined` split strategy is used.
 Each of these files contains one column of indices for the respective split with no header.
+Other strategies (`random` and `KFold`) do not require split index files.
 
-The file name and directory for the data set and the split directory can be set in the config file.
 
 ### Model configuration
-Edit configuration in the config file passed to `--config`.
+Edit configuration in the .yaml-file passed to `--config`.
+A sample can be found in `config/`.
+Parameters given in the config file are overwritten by command-line arguments.
+
+
+### Hyperparameter search configuration
+Hyperparameter searches require an additional configuration file containing the hyperparameter grid.
+The file is passed to `--hparam_config_path`
+For an example, refer to `config/hparam_bounds.yaml`.

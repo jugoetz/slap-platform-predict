@@ -38,7 +38,7 @@ def main(product_file, valid_idx_file, output_file, verbose=False):
     # This will throw warnings if any reactions cannot be generated,
     # e.g. if there are two morpholines in the same product.
     raw_dir = product_file.parent
-    filename_base = product_file.name.rstrip(".csv")
+    filename_base = product_file.with_suffix("").name
     df = import_valid_smiles_from_vl(
         raw_dir, filename_base, valid_idx_file=valid_idx_file
     )

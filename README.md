@@ -9,11 +9,14 @@ conda env create -f environment.yaml
 You will need a CSV-file containing a column `smiles` containing the SMILES strings of your query molecules.
 The CSV-file can contain arbitrary additional columns, one containing an identifier is recommended.
 
-Start the jupyter server with ```$ jupyter-notebook```.
+To make a prediction, run the following command:
+```bash
+python inference.py --product-file PRODUCT_FILE
+```
+where `PRODUCT_FILE` is the path to the CSV-file containing the query molecules,
 
-Open jupyter notebook `notebooks/inference.ipynb`.
-
-Follow the instructions there.
+Alternatively, you can use the jupyter notebook `notebooks/inference.ipynb` for more flexibility,
+but the command line interface should fit most needs.
 
 
 ## Usage (Training/inference on new data)

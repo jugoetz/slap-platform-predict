@@ -25,6 +25,7 @@ from src.data.featurizers import (
 )
 from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
 from src.util.definitions import DATA_ROOT, LOG_DIR
+from src.util.rdkit_util import canonicalize_smiles
 
 
 def collate_fn(
@@ -360,6 +361,7 @@ class SLAPProductDataset:
         smiles: Optional[List[str]] = None,
         file_path: Optional[os.PathLike] = None,
         file_smiles_column: str = "SMILES",
+        is_reaction: bool = False,
     ):
         """
         At least one of smiles and file_path has to be given. If both are given, the contents are concatenated.
@@ -367,6 +369,8 @@ class SLAPProductDataset:
             smiles (list): Products of the SLAP reaction, given as SMILES.
             file_path (os.PathLike): Path to csv file containing products of the SLAP reaction, given as SMILES.
             file_smiles_column (str): Header of the column containing SMILES. Defaults to "SMILES"
+            is_reaction (bool): Whether the SMILES are reaction SMILES (or product SMILES). Defaults to False.
+                If reactionSMILES are given, we skip generating reactions and only use the given reaction.
         """
         # load the SMILES
         self.dataset_0D = None
@@ -393,7 +397,9 @@ class SLAPProductDataset:
         # initialize the reaction generator with training data
         reaction_generator = SLAPReactionGenerator()
         reaction_generator.initialize_dataset(
-            DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv", use_cache=True
+            DATA_ROOT
+            / "reactionSMILESunbalanced_LCMS_2022-08-25_without_validation.csv",
+            use_cache=True,
         )
         # initialize the similarity calculator
         slaps, aldehydes = reaction_generator.get_reactants_in_dataset()
@@ -401,41 +407,86 @@ class SLAPProductDataset:
             slap_reactants=slaps, aldehyde_reactants=aldehydes
         )
 
-        # generate the reactions
-        for i, smi in enumerate(self.smiles):
-            try:
-                (
-                    reactions,
-                    reactants,
-                    product_type,
-                ) = reaction_generator.generate_reactions_for_product(
-                    product=smi,
-                    return_additional_info=True,
-                    return_reaction_smiles=True,
-                )
-            except RuntimeError as e:
-                # if we can't generate a reaction, we use a dummy reaction (to not fuck up the indexing)
-                reactions = [
-                    "[C:1].[C:2]>>[C:1][C:2]",
-                ]
-                reactants = self.dummy_reactants
-                product_type = [
-                    "dummy",
-                ]
-                self.invalid_idxs.append(i)
-                print(
-                    f"WARNING: Could not generate reaction for product with index {i}. Using dummy reaction.\n"
-                    f"Error leading to this warning: {e}"
-                )
+        if is_reaction:
+            # arrange reactions
+            for i, smi in enumerate(self.smiles):
+                try:
+                    reactants, products = smi.split(">>")
+                    slap_reactant, aldehyde_reactant = reactants.split(".")
+                    slap_reactant = Chem.MolFromSmiles(
+                        canonicalize_smiles(slap_reactant)
+                    )
+                    aldehyde_reactant = Chem.MolFromSmiles(
+                        canonicalize_smiles(aldehyde_reactant)
+                    )
 
-            self.reactions.extend(reactions)
-            self.reactants.extend(reactants)
-            self.product_types.extend(product_type)
-            self.product_idxs.extend([i for _ in reactions])
+                    reactions = [
+                        smi,
+                    ]
+                    reactants = [[slap_reactant, aldehyde_reactant]]
+                    product_type = [
+                        "user-defined reactionSMILES",
+                    ]
+                except RuntimeError as e:
+                    # if something goes wrong, we use a dummy reaction (to not fuck up the indexing)
+                    reactions = [
+                        "[C:1].[C:2]>>[C:1][C:2]",
+                    ]
+                    reactants = self.dummy_reactants
+                    product_type = [
+                        "dummy",
+                    ]
+                    self.invalid_idxs.append(i)
+                    print(
+                        f"WARNING: Could not generate reaction for product with index {i}. Using dummy reaction.\n"
+                        f"Error leading to this warning: {e}"
+                    )
 
-        print(
-            f"INFO: {len(self.smiles)} SMILES were read. For {len(self.invalid_idxs)} SMILES, no valid SLAP reaction could be generated."
-        )
+                self.reactions.extend(reactions)
+                self.reactants.extend(reactants)
+                self.product_types.extend(product_type)
+                self.product_idxs.extend([i for _ in reactions])
+            print(
+                f"INFO: {len(self.smiles)} reactionSMILES were read. For {len(self.invalid_idxs)} reactionSMILES, "
+                f"something went wrong and a dummy reaction was used."
+            )
+
+        else:
+            # generate the reactions
+            for i, smi in enumerate(self.smiles):
+                try:
+                    (
+                        reactions,
+                        reactants,
+                        product_type,
+                    ) = reaction_generator.generate_reactions_for_product(
+                        product=smi,
+                        return_additional_info=True,
+                        return_reaction_smiles=True,
+                    )
+                except RuntimeError as e:
+                    # if we can't generate a reaction, we use a dummy reaction (to not fuck up the indexing)
+                    reactions = [
+                        "[C:1].[C:2]>>[C:1][C:2]",
+                    ]
+                    reactants = self.dummy_reactants
+                    product_type = [
+                        "dummy",
+                    ]
+                    self.invalid_idxs.append(i)
+                    print(
+                        f"WARNING: Could not generate reaction for product with index {i}. Using dummy reaction.\n"
+                        f"Error leading to this warning: {e}"
+                    )
+
+                self.reactions.extend(reactions)
+                self.reactants.extend(reactants)
+                self.product_types.extend(product_type)
+                self.product_idxs.extend([i for _ in reactions])
+
+            print(
+                f"INFO: {len(self.smiles)} SMILES were read. For {len(self.invalid_idxs)} SMILES, no valid SLAP reaction could be generated."
+            )
 
         # n.b. the following indices index self.reactants, not self.smiles
         self.idx_known = []

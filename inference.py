@@ -5,12 +5,16 @@ import statistics
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
+from rdkit import Chem
+from rdkit.Chem.rdChemReactions import ReactionFromSmarts
 import torch
 from torch.utils.data import DataLoader
 
 from src.model.classifier import load_trained_model
-from src.util.definitions import TRAINED_MODEL_DIR, LOG_DIR
+from src.util.definitions import TRAINED_MODEL_DIR, LOG_DIR, DATA_ROOT
 from src.data.dataloader import SLAPProductDataset, collate_fn
+from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
+from src.util.rdkit_util import canonicalize_smiles
 
 
 def import_valid_smiles_from_vl(
@@ -26,7 +30,7 @@ def import_valid_smiles_from_vl(
         return smiles_df[indices_arr]
 
 
-def main(product_file, valid_idx_file, output_file, verbose=False):
+def main(product_file, valid_idx_file, output_file, is_reaction, verbose=False):
     # paths to the best models
     model_0D = TRAINED_MODEL_DIR / "2022-12-16-144509_863758/best.ckpt"  # FFN
     model_1D = TRAINED_MODEL_DIR / "2022-12-16-145840_448790/best.ckpt"  # D-MPNN
@@ -34,18 +38,18 @@ def main(product_file, valid_idx_file, output_file, verbose=False):
     # path to the OneHotEncoder state for model_0D
     ohe_state_dict = LOG_DIR / "OHE_state_dict_FqIDTIsCHoURGQcv.json"
 
-    # Import product SMILES and generate reactionSMILES. This will take some time.
-    # This will throw warnings if any reactions cannot be generated,
-    # e.g. if there are two morpholines in the same product.
+    # import data
     raw_dir = product_file.parent
     filename_base = product_file.with_suffix("").name
     df = import_valid_smiles_from_vl(
         raw_dir, filename_base, valid_idx_file=valid_idx_file
     )
-    data = SLAPProductDataset(smiles=df["smiles"].values.tolist())
+
+    data = SLAPProductDataset(
+        smiles=df["smiles"].values.tolist(), is_reaction=is_reaction
+    )
 
     # Process data. This includes generating reaction graphs and takes some time.
-
     data.process(
         {
             "dataset_0D": dict(
@@ -244,11 +248,9 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
-        "--valid-idx-file",
-        type=pathlib.Path,
-        help="Path to a CSV file containing indices used to filter products",
-        required=False,
-        default=None,
+        "--reaction",
+        help="Whether input is a reaction or not",
+        action="store_true",
     )
     parser.add_argument(
         "-o",
@@ -258,5 +260,13 @@ if __name__ == "__main__":
         required=False,
         default=None,
     )
+    parser.add_argument(
+        "--valid-idx-file",
+        type=pathlib.Path,
+        help="Path to a CSV file containing indices used to filter products",
+        required=False,
+        default=None,
+    )
+
     args = parser.parse_args()
-    main(args.product_file, args.valid_idx_file, args.output_file)
+    main(args.product_file, args.valid_idx_file, args.output_file, args.reaction)

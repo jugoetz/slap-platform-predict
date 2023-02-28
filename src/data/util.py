@@ -490,12 +490,23 @@ class SLAPReactionSimilarityCalculator:
 
         return slap_sim, aldehyde_sim
 
-    def is_similar(self, **kwargs) -> bool:
+    def is_similar(
+        self, slap_similarity_threshold=0.5, aldehyde_similarity_threshold=0.5, **kwargs
+    ) -> bool:
         """
         Returns whether a given reaction is similar to the training data.
-        See `calculate_similarity` for details on how similarity is calculated and for arguments.
+        Args:
+            slap_similarity_threshold (float, optional): Minimum similarity score for the SLAP reagent. Defaults to 0.5.
+            aldehyde_similarity_threshold (float, optional): Minimum similarity score for the aldehyde. Defaults to 0.5.
+            **kwargs: Keyword arguments passed to `calculate_similarity`.
+        See `calculate_similarity` for details on how similarity is calculated and for further keyword arguments.
         """
         slap_sim, aldehyde_sim = self.calculate_similarity(**kwargs)
-        return (np.sum(np.array(slap_sim) > 0.5) / len(slap_sim) > 0.05) and (
-            np.sum(np.array(aldehyde_sim) > 0.5) / len(aldehyde_sim) > 0.05
+        return (
+            np.sum(np.array(slap_sim) > slap_similarity_threshold) / len(slap_sim)
+            > 0.05
+        ) and (
+            np.sum(np.array(aldehyde_sim) > aldehyde_similarity_threshold)
+            / len(aldehyde_sim)
+            > 0.05
         )

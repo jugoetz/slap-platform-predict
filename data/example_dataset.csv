@@ -1,0 +1,4 @@
+SMILES,targets
+C[Si](C)(C)COCC1(/N=C/c2ccc(C(F)(F)F)cc2)CCOCC1,0
+COc1cccc(/C=N/C2(COC[Si](C)(C)C)CCOCC2)c1,1
+C[Si](C)(C)COCC1(/N=C/c2ccc(F)c(C#N)c2)CCOCC1,1

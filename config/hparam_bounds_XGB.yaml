@@ -1,0 +1,31 @@
+- bounds:
+  - 0.0001
+  - 10
+  name: reg_lambda  # l2 regularization strength for XGBoost
+  type: range
+  value_type: float
+  log_scale: True
+
+- bounds:
+  - 0.0001
+  - 10
+  name: reg_alpha  # l1 regularization strength for XGBoost
+  type: range
+  value_type: float
+  log_scale: True
+
+- bounds:
+  - 0.0001
+  - 10
+  name: gamma  # Minimum loss reduction required to make a further partition on a leaf node of the tree.
+  type: range
+  value_type: float
+  log_scale: True
+
+- bounds:
+  - 0.001
+  - 1
+  name: learning_rate
+  type: range
+  value_type: float
+  log_scale: True

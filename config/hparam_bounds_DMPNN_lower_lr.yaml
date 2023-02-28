@@ -1,0 +1,30 @@
+- bounds:
+  - 512
+  - 2048
+  name: encoder_hidden_size
+  type: range
+  value_type: int
+
+- bounds:
+  - 3
+  - 6
+  name: encoder_depth
+  type: range
+  value_type: int
+
+- bounds:
+  - 0.000001
+  - 0.001
+  name: learning_rate
+  type: range
+  value_type: float
+  log_scale: True
+
+#- values:
+#  - "attention"
+#  - "mean"
+#  - "max"
+#  - "sum"
+#  name: aggregation
+#  type: choice
+#  value_type: str

@@ -1,4 +1,7 @@
+import json
+import os
 from functools import partial
+from typing import Union
 
 import numpy as np
 import torch
@@ -14,17 +17,138 @@ from dgllife.utils.featurizers import (
     atom_total_num_H_one_hot,
     atom_hybridization_one_hot,
     atom_is_aromatic,
+    atom_is_in_ring,
     atom_mass,
     bond_type_one_hot,
     bond_is_conjugated,
     bond_is_in_ring,
     bond_stereo_one_hot,
 )
+
+from rdkit import Chem
 from rdkit.Chem import Mol, MolFromSmiles
 from rdkit.Chem.rdMolDescriptors import GetMorganFingerprintAsBitVect
 from rdkit.DataStructs import ConvertToNumpyArray
 
 from src.util.rdkit_util import canonicalize_smiles
+
+
+class SLAPAtomFeaturizer(BaseAtomFeaturizer):
+    """An atom featurizer tailored to SLAP chemistry.
+
+    The atom features are:
+
+    * **One hot encoding of the atom type**. 12 elements ["H", "B", "C", "N", "O", "F", "Si", "P", "S", "Cl", "Br", "I",] and "unknown" are supported.
+    * **One hot encoding of the atom degree**. The supported possibilities are ``0 - 5``.
+    * **One hot encoding of the formal charge of the atom**. [-1, 0, 1] and "unknown" are supported.
+    * **One hot encoding of the number of total Hs on the atom**. The supported possibilities are ``0 - 4``.
+    * **One hot encoding of the atom hybridization**. The supported possibilities are
+      ``S``, ``SP``, ``SP2``, ``SP3`` and "unknown".
+    * **Whether the atom is aromatic**.
+    * **Whether the atom is in a ring**.
+
+    In total, the feature vector has length 35.
+
+    **We assume the resulting DGLGraph will not contain any virtual nodes.**
+
+    Parameters
+    ----------
+    atom_data_field : str
+        Name for storing atom features in DGLGraphs, default to 'h'.
+    """
+
+    def __init__(self, atom_data_field="h"):
+        allowable_atoms = [
+            "H",
+            "B",
+            "C",
+            "N",
+            "O",
+            "F",
+            "Si",
+            "P",
+            "S",
+            "Cl",
+            "Br",
+            "I",
+        ]
+
+        featurizer_funcs = {
+            atom_data_field: ConcatFeaturizer(
+                [
+                    partial(
+                        atom_type_one_hot,
+                        allowable_set=allowable_atoms,
+                        encode_unknown=True,
+                    ),
+                    partial(
+                        atom_total_degree_one_hot,
+                        allowable_set=list(range(6)),
+                        encode_unknown=False,
+                    ),
+                    partial(
+                        atom_formal_charge_one_hot,
+                        allowable_set=[-1, 0, 1],
+                        encode_unknown=True,
+                    ),
+                    partial(
+                        atom_total_num_H_one_hot,
+                        allowable_set=list(range(5)),
+                        encode_unknown=False,
+                    ),
+                    partial(
+                        atom_hybridization_one_hot,
+                        allowable_set=[
+                            Chem.rdchem.HybridizationType.S,
+                            Chem.rdchem.HybridizationType.SP,
+                            Chem.rdchem.HybridizationType.SP2,
+                            Chem.rdchem.HybridizationType.SP3,
+                        ],
+                        encode_unknown=True,
+                    ),
+                    atom_is_aromatic,
+                    atom_is_in_ring,
+                ]
+            )
+        }
+
+        super().__init__(featurizer_funcs=featurizer_funcs)
+
+
+class SLAPBondFeaturizer(BaseBondFeaturizer):
+    """A bond featurizer tailored to SLAP chemistry.
+
+    Actually, this turned out to be identical to dgllife's canonical bond featurizer.
+    We still keep it to be safe in case they change it.
+
+    The bond features are:
+    * **One hot encoding of the bond type**. The supported bond types are
+      ``SINGLE``, ``DOUBLE``, ``TRIPLE``, ``AROMATIC``.
+    * **Whether the bond is conjugated.**.
+    * **Whether the bond is in a ring.**
+    * **One hot encoding of the stereo configuration of a bond**. The supported bond stereo
+      configurations include ``STEREONONE``, ``STEREOANY``, ``STEREOZ``, ``STEREOE``,
+      ``STEREOCIS``, ``STEREOTRANS``.
+
+    In total, the feature vector has length 12.
+
+    **We assume the resulting DGLGraph will be created with :func:`smiles_to_bigraph` without
+    self loops.**
+    """
+
+    def __init__(self, bond_data_field="e"):
+        featurizer_funcs = {
+            bond_data_field: ConcatFeaturizer(
+                [
+                    bond_type_one_hot,
+                    bond_is_conjugated,
+                    bond_is_in_ring,
+                    bond_stereo_one_hot,
+                ]
+            )
+        }
+
+        super().__init__(featurizer_funcs=featurizer_funcs, self_loop=False)
 
 
 class ChempropAtomFeaturizer(BaseAtomFeaturizer):
@@ -275,7 +399,8 @@ class OneHotEncoder:
     Molecule featurization with one-hot vector
     """
 
-    classes = {}
+    def __init__(self):
+        self.classes = {}
 
     def add_dimension(self, smiles: list):
         """
@@ -326,6 +451,24 @@ class OneHotEncoder:
             one_hot_vector[one_hot_index + sum(feat_sizes[:dimension])] = 1
 
         return one_hot_vector
+
+    def save_state_dict(self, path):
+        """Save the state of the encoder to a JSON file."""
+        # essentially save self.classes
+        # there is a catch here: json serializes int dict keys to strings. We take care of that in the load_state_dict
+        # method
+        with open(path, "w") as f:
+            json.dump(self.classes, f)
+        return
+
+    def load_state_dict(self, path):
+        """Load the state of the encoder from a JSON file."""
+        # essentially load self.classes
+        # there is a catch here: json serializes int dict keys to strings. We interpret the keys as ints here.
+        with open(path, "r") as f:
+            state_dict_with_string_keys = json.load(f)
+        self.classes = {int(k): v for k, v in state_dict_with_string_keys.items()}
+        return
 
     @property
     def n_dimensions(self) -> int:
@@ -389,3 +532,41 @@ def dummy_bond_featurizer(m: Mol):
     """For testing. Featurizes every bond with its index"""
     feats = [[b.GetIdx()] for b in m.GetBonds() for _ in range(2)]
     return {"e": torch.FloatTensor(feats)}
+
+
+class FromFileFeaturizer:
+    """
+    Featurizer that loads features from a file. The file should be a JSON file with the following format:
+    {
+        "smiles1": [feature1, feature2, ...],
+        "smiles2": [feature1, feature2, ...],
+        ...
+    }
+    """
+
+    def __init__(self, filename: Union[str, os.PathLike], **kwargs):
+        """
+        Args:
+            filename (str or os.Pathlike): Path to the file containing the features.
+        """
+        self.filename = filename
+        self._features = None
+
+    def process(self, *smiles):
+        """
+        Process one or more SMILES and return the features.
+        """
+        if self._features is None:
+            with open(self.filename, "r") as f:
+                self._features = json.load(f)
+
+        return np.array(
+            [self._features[canonicalize_smiles(smi)] for smi in smiles]
+        ).flatten()
+
+    @property
+    def feat_size(self) -> int:
+        if self._features is None:
+            with open(self.filename, "r") as f:
+                self._features = json.load(f)
+        return len(list(self._features.values())[0])

@@ -8,17 +8,27 @@ from torch import nn
 
 from src.layer.mpnn import MPNNEncoder
 from src.layer.ffn import FFN
-from src.layer.pooling import GlobalAttentionPooling, AvgPooling, SumPooling, MaxPooling
+from src.layer.pooling import (
+    GlobalAttentionPooling,
+    AvgPooling,
+    SumPooling,
+    MaxPooling,
+    ConcatenateNodeEdgeSumPooling,
+)
 from src.layer.util import get_activation
 
 
 def load_model(hparams):
-    if hparams["encoder"]["type"] == "D-MPNN":
+    if hparams["name"] == "D-MPNN":
         model = DMPNNModel(**hparams)
-    elif hparams["encoder"]["type"] == "GCN":
+    elif hparams["name"] == "GCN":
         model = GCNModel(**hparams)
-    else:
+    elif hparams["name"] == "FFN":
         model = FFNModel(**hparams)
+    elif hparams["name"] == "GraphAgnostic":
+        model = GraphAgnosticModel(**hparams)
+    else:
+        raise ValueError(f"Model type {hparams['name']} not supported.")
     return model
 
 
@@ -27,8 +37,12 @@ def load_trained_model(model_type, checkpoint_path):
         model = DMPNNModel.load_from_checkpoint(checkpoint_path)
     elif model_type == "GCN":
         model = GCNModel.load_from_checkpoint(checkpoint_path)
-    else:
+    elif model_type == "FFN":
         model = FFNModel.load_from_checkpoint(checkpoint_path)
+    elif model_type == "GraphAgnostic":
+        model = GraphAgnosticModel.load_from_checkpoint(checkpoint_path)
+    else:
+        raise ValueError(f"Model type {model_type} not supported.")
     return model
 
 
@@ -340,9 +354,47 @@ class FFNModel(Classifier):
         )
 
     def forward(self, x):
-        self.decoder(x)
+        return self.decoder(x)
 
     def _get_preds(self, batch):
         _, global_features_batch, _ = batch
         y_hat = self(global_features_batch)
+        return y_hat
+
+
+class GraphAgnosticModel(Classifier):
+    """
+    Baseline model that does not use graph connectivity information.
+    This pools the node features and edge features separately, and concatenates them.
+
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def init_encoder(self):
+        return ConcatenateNodeEdgeSumPooling(
+            ntype="_N", etype="_E", nfeat="x", efeat="e"
+        )
+
+    def init_decoder(self):
+        return FFN(
+            in_size=self.hparams["atom_feature_size"]
+            + self.hparams["bond_feature_size"],
+            out_size=1,
+            **self.hparams.decoder,
+        )
+
+    def forward(self, x):
+        graph, global_features = x
+        embedding = self.encoder(graph)
+        if global_features is not None:
+            y = self.decoder(torch.cat((embedding, global_features), dim=1))
+        else:
+            y = self.decoder(embedding)
+        return y
+
+    def _get_preds(self, batch):
+        graph_batch, global_features_batch, _ = batch
+        y_hat = self((graph_batch, global_features_batch))
         return y_hat

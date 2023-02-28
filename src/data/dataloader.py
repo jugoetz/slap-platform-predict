@@ -531,7 +531,11 @@ class SLAPProductDataset:
                     self.idx_1D_slap.append(i)
                 else:
                     # check if the reaction is similar to reactions in the training data
-                    if similarity_calculator.is_similar(reactants=reactant_pair):
+                    if similarity_calculator.is_similar(
+                        reactants=reactant_pair,
+                        slap_similarity_threshold=0.74,
+                        aldehyde_similarity_threshold=0.42,
+                    ):
                         self.problem_type.append("2D_similar")
                         self.idx_2D_similar.append(i)
                     else:

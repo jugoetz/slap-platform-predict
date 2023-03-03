@@ -63,6 +63,23 @@ def remove_mapno(mol: Mol):
     return mol_copy
 
 
+def remove_mapno_from_reaction(rxn: rdChemReactions.ChemicalReaction) -> None:
+    """
+    Remove all atom-mapping information from a reaction. Operates inplace.
+    """
+    for ri in range(rxn.GetNumReactantTemplates()):
+        rt = rxn.GetReactantTemplate(ri)
+        for atom in rt.GetAtoms():
+            if atom.HasProp("molAtomMapNumber"):
+                atom.ClearProp("molAtomMapNumber")
+    for pi in range(rxn.GetNumProductTemplates()):
+        pt = rxn.GetProductTemplate(pi)
+        for atom in pt.GetAtoms():
+            if atom.HasProp("molAtomMapNumber"):
+                atom.ClearProp("molAtomMapNumber")
+    return
+
+
 def create_reaction_instance(rxn, reactants):
     """
     Create an instance of a reaction, given reactants, and map all atoms that end up in the product(s).

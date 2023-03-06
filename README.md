@@ -13,7 +13,8 @@ To make a prediction, run the following command:
 ```bash
 python inference.py --product-file PRODUCT_FILE
 ```
-where `PRODUCT_FILE` is the path to the CSV-file containing the query molecules.
+where `PRODUCT_FILE` is the path to the CSV file containing the query molecules. The CSV file may be compressed in one
+of the formats pandas can read (.gz, .bz2, .zip, .xz, .zst, .tar, .tar.gz, .tar.xz or .tar.bz2).
 When passing the `--reaction` flag, reactionSMILES strings are expected as input instead of SMILES strings of the product.
 
 Alternatively, you can use the jupyter notebook `notebooks/inference.ipynb` for more flexibility,

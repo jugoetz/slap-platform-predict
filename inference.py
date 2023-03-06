@@ -18,11 +18,10 @@ from src.util.rdkit_util import canonicalize_smiles
 
 
 def import_valid_smiles_from_vl(
-    raw_dir: pathlib.Path, filename_base: str, valid_idx_file: pathlib.Path = None
+    raw_dir: pathlib.Path, filename: str, valid_idx_file: pathlib.Path = None
 ):
     """Import smiles from a csv file and filter by values in the `valid` column of a second csv file"""
-    smiles_file = raw_dir / f"{filename_base}.csv"
-    smiles_df = pd.read_csv(smiles_file)
+    smiles_df = pd.read_csv(raw_dir / filename)
     if valid_idx_file is None:
         return smiles_df
     else:
@@ -42,7 +41,7 @@ def main(product_file, valid_idx_file, output_file, is_reaction, verbose=False):
     raw_dir = product_file.parent
     filename_base = product_file.with_suffix("").name
     df = import_valid_smiles_from_vl(
-        raw_dir, filename_base, valid_idx_file=valid_idx_file
+        raw_dir, product_file.name, valid_idx_file=valid_idx_file
     )
 
     data = SLAPProductDataset(

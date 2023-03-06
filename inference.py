@@ -65,7 +65,9 @@ def main(product_file, valid_idx_file, output_file, is_reaction, verbose=False):
     )
 
     data = SLAPProductDataset(
-        smiles=df["smiles"].values.tolist(), is_reaction=is_reaction
+        smiles=df["smiles"].values.tolist(),
+        is_reaction=is_reaction,
+        use_validation=use_validation_data,
     )
 
     # Process data. This includes generating reaction graphs and takes some time.

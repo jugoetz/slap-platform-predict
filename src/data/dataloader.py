@@ -362,6 +362,7 @@ class SLAPProductDataset:
         file_path: Optional[os.PathLike] = None,
         file_smiles_column: str = "SMILES",
         is_reaction: bool = False,
+        use_validation: bool = False,
     ):
         """
         At least one of smiles and file_path has to be given. If both are given, the contents are concatenated.
@@ -371,6 +372,8 @@ class SLAPProductDataset:
             file_smiles_column (str): Header of the column containing SMILES. Defaults to "SMILES"
             is_reaction (bool): Whether the SMILES are reaction SMILES (or product SMILES). Defaults to False.
                 If reactionSMILES are given, we skip generating reactions and only use the given reaction.
+            use_validation (bool): Whether the validation plate data was used in training. This changes which reactions
+             will be considered similar to training data. Defaults to False.
         """
         # load the SMILES
         self.dataset_0D = None
@@ -396,9 +399,15 @@ class SLAPProductDataset:
         self.known_outcomes = []
         # initialize the reaction generator with training data
         reaction_generator = SLAPReactionGenerator()
+        if use_validation:
+            dataset_path = DATA_ROOT / "reactionSMILESunbalanced_LCMS_2022-08-25.csv"
+        else:
+            dataset_path = (
+                DATA_ROOT
+                / "reactionSMILESunbalanced_LCMS_2022-08-25_without_validation.csv"
+            )
         reaction_generator.initialize_dataset(
-            DATA_ROOT
-            / "reactionSMILESunbalanced_LCMS_2022-08-25_without_validation.csv",
+            dataset_path,
             use_cache=True,
         )
         # initialize the similarity calculator

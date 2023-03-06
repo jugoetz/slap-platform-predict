@@ -5,16 +5,12 @@ import statistics
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
-from rdkit import Chem
-from rdkit.Chem.rdChemReactions import ReactionFromSmarts
 import torch
 from torch.utils.data import DataLoader
 
 from src.model.classifier import load_trained_model
 from src.util.definitions import TRAINED_MODEL_DIR, LOG_DIR, DATA_ROOT
 from src.data.dataloader import SLAPProductDataset, collate_fn
-from src.data.util import SLAPReactionGenerator, SLAPReactionSimilarityCalculator
-from src.util.rdkit_util import canonicalize_smiles
 
 
 def import_valid_smiles_from_vl(
@@ -30,12 +26,36 @@ def import_valid_smiles_from_vl(
 
 
 def main(product_file, valid_idx_file, output_file, is_reaction, verbose=False):
+
+    use_validation_data = True
     # paths to the best models
-    model_0D = TRAINED_MODEL_DIR / "2022-12-16-144509_863758/best.ckpt"  # FFN
-    model_1D = TRAINED_MODEL_DIR / "2022-12-16-145840_448790/best.ckpt"  # D-MPNN
-    model_2D = TRAINED_MODEL_DIR / "2022-12-06-115456_273019/best.ckpt"  # D-MPNN
-    # path to the OneHotEncoder state for model_0D
-    ohe_state_dict = LOG_DIR / "OHE_state_dict_FqIDTIsCHoURGQcv.json"
+    if use_validation_data:
+        # the next three are trained with full data, including validation plate data
+        model_0D = TRAINED_MODEL_DIR / "2023-03-06-105610_484882" / "best.ckpt"  # FFN
+        model_1D = (
+            TRAINED_MODEL_DIR / "2023-03-06-112027_188465" / "best.ckpt"
+        )  # D-MPNN
+        model_2D = (
+            TRAINED_MODEL_DIR / "2023-03-06-112721_778803" / "best.ckpt"
+        )  # D-MPNN
+        # path to the OneHotEncoder state for model_0D
+        ohe_state_dict = (
+            LOG_DIR / "OHE_state_dict_bhTczANzKRRqIgUR.json"
+        )  # with validation plate data
+
+    else:
+        # the next three are trained without using validation plate data
+        model_0D = TRAINED_MODEL_DIR / "2022-12-16-144509_863758" / "best.ckpt"  # FFN
+        model_1D = (
+            TRAINED_MODEL_DIR / "2022-12-16-145840_448790" / "best.ckpt"
+        )  # D-MPNN
+        model_2D = (
+            TRAINED_MODEL_DIR / "2022-12-06-115456_273019" / "best.ckpt"
+        )  # D-MPNN
+        # path to the OneHotEncoder state for model_0D
+        ohe_state_dict = (
+            LOG_DIR / "OHE_state_dict_FqIDTIsCHoURGQcv.json"
+        )  # without validation plate data
 
     # import data
     raw_dir = product_file.parent

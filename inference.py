@@ -59,7 +59,8 @@ def main(product_file, valid_idx_file, output_file, is_reaction, verbose=False):
 
     # import data
     raw_dir = product_file.parent
-    filename_base = product_file.with_suffix("").name
+    # remove the .csv extension AND any other extensions behind it (e.g. remove .csv.bz2 or csv.gz)
+    filename_base = product_file.name.split(".csv")[0]
     df = import_valid_smiles_from_vl(
         raw_dir, product_file.name, valid_idx_file=valid_idx_file
     )

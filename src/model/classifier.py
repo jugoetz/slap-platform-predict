@@ -149,7 +149,6 @@ class Classifier(pl.LightningModule):
             }
 
     def _config_lr_scheduler(self, optimizer):
-
         scheduler_name = self.hparams.optimizer["lr_scheduler"][
             "scheduler_name"
         ].lower()

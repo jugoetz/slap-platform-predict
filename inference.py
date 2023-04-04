@@ -26,7 +26,6 @@ def import_valid_smiles_from_vl(
 
 
 def main(product_file, valid_idx_file, output_file, is_reaction, verbose=False):
-
     use_validation_data = True
     # paths to the best models
     if use_validation_data:

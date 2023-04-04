@@ -285,7 +285,6 @@ class SLAPReactionGenerator:
             reactions = [ReactionToSmiles(reaction) for reaction in reactions]
 
         if return_additional_info:
-
             return (
                 reactions,
                 [

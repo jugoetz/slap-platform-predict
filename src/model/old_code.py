@@ -133,7 +133,6 @@ class BaseModel(pl.LightningModule):
         self.compute_metrics("test")
 
     def shared_step(self, batch, mode):
-
         # ========== compute predictions ==========
         indices, mol_graphs, rxn_graphs, labels, metadata = batch
 
@@ -189,7 +188,6 @@ class BaseModel(pl.LightningModule):
             }
 
     def _config_lr_scheduler(self, optimizer):
-
         scheduler_name = self.hparams.lr_scheduler["scheduler_name"].lower()
 
         if scheduler_name == "reduce_on_plateau":
@@ -214,7 +212,6 @@ class BaseModel(pl.LightningModule):
         metrics = nn.ModuleDict()
 
         for mode in ["metric_train", "metric_val", "metric_test"]:
-
             metrics[mode] = nn.ModuleDict()
 
             for task_name, task_setting in self.classification_tasks.items():
@@ -536,7 +533,6 @@ class MoleculeModel(BaseModel):
         return {"reaction_type": reaction_type}
 
     def compute_loss(self, preds, labels):
-
         all_loss = {}
 
         task = "reaction_type"
@@ -583,7 +579,6 @@ class MoleculeModel(BaseModel):
         atom_descriptors_batch: List[np.ndarray] = None,
         return_mode: Optional[str] = None,
     ) -> torch.FloatTensor:
-
         if return_mode is None:
             return self.backbone(mol_graph, atom_descriptors_batch)
 
@@ -631,7 +626,6 @@ class MoleculeModel(BaseModel):
             }
 
     def _config_lr_scheduler(self, optimizer):
-
         scheduler_name = self.hparams.lr_scheduler["scheduler_name"].lower()
 
         if scheduler_name == "reduce_on_plateau":
@@ -680,7 +674,6 @@ class MoleculeModel(BaseModel):
         return scheduler
 
     def shared_step(self, batch, mode):
-
         # ========== compute predictions ==========
         indices, rxn_graphs, labels, metadata = batch
 
@@ -769,7 +762,6 @@ class MoleculeModelDgl(BaseModel):
         return {"reaction_type": reaction_type}
 
     def compute_loss(self, preds, labels):
-
         all_loss = {}
 
         task = "reaction_type"
@@ -815,7 +807,6 @@ class MoleculeModelDgl(BaseModel):
         cgr_graph: dgl.DGLGraph,
         return_mode: Optional[str] = None,
     ) -> torch.FloatTensor:
-
         if return_mode is None:
             return self.backbone(cgr_graph)
 
@@ -855,7 +846,6 @@ class MoleculeModelDgl(BaseModel):
             }
 
     def _config_lr_scheduler(self, optimizer):
-
         scheduler_name = self.hparams.lr_scheduler["scheduler_name"].lower()
 
         if scheduler_name == "reduce_on_plateau":
@@ -904,7 +894,6 @@ class MoleculeModelDgl(BaseModel):
         return scheduler
 
     def shared_step(self, batch, mode):
-
         # ========== compute predictions ==========
         indices, cgr_graphs, labels, metadata = batch
 

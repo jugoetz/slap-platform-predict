@@ -38,7 +38,9 @@ def walk_split_directory(directory: pathlib.Path):
                 "train" in name or "test" in name or "val" in name
             ):  # ignore any other matches
                 split_indices[int(fold_idx)][name] = file
-        except AttributeError:  # raised when regex doesn't match. Just ignore these files
+        except (
+            AttributeError
+        ):  # raised when regex doesn't match. Just ignore these files
             pass
     # instead of the defaultdict, we return a list. We sort by dict key to ensure the list is in fold order.
     return [i[1] for i in sorted(split_indices.items())]

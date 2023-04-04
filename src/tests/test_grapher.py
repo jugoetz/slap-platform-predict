@@ -75,7 +75,6 @@ class Test(TestCase):
         )
 
         with self.subTest("Testing atom order/features"):
-
             self.assertTrue(
                 torch.all(
                     torch.eq(
@@ -132,7 +131,6 @@ class Test(TestCase):
         )
 
         with self.subTest("Testing atom order/features"):
-
             self.assertTrue(
                 torch.all(
                     torch.eq(
@@ -189,7 +187,6 @@ class Test(TestCase):
         )
 
         with self.subTest("Testing atom order/features"):
-
             self.assertTrue(
                 torch.all(
                     torch.eq(

@@ -258,7 +258,6 @@ class SubgraphCGR(Transform):
             neigh = set(neigh).union(sub_graph).difference(sub_graph)
 
             while len(sub_graph) < num_in_center + num_sample:
-
                 if len(neigh) == 0:  # e.g. H--H --> H + H, or all atoms included
                     break
 
@@ -314,7 +313,6 @@ class IdentityTransform:
     def __call__(
         self, reactants_g, products_g, reaction_g, reaction: Reaction
     ) -> Tuple[dgl.DGLGraph, dgl.DGLGraph, dgl.DGLGraph, Any]:
-
         return reactants_g, products_g, reaction_g, reaction
 
 

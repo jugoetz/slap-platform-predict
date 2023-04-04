@@ -26,7 +26,6 @@ def move_atom_index_to_mapno(mol: Mol):
     """
     mol_copy = Chem.Mol(mol)  # necessary to not change the input molecule
     for i, a in enumerate(mol_copy.GetAtoms()):
-
         if a.HasProp("molAtomMapNumber"):
             a.ClearProp("molAtomMapNumber")
         a.SetProp("molAtomMapNumber", str(i))
@@ -122,7 +121,6 @@ def create_reaction_instance(rxn, reactants):
         reaction = rdChemReactions.ChemicalReaction()
         for p in products:
             for atom in p.GetAtoms():
-
                 # for atoms that are mapped in the reaction template
                 # (RDKit does not copy user-defined properties to the products for mapped atoms, only for unmapped atoms)
                 # the reference solution from Greg uses "if not atom.HasProp('old_mapno'):" here, but that is too wide

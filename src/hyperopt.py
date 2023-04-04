@@ -21,7 +21,6 @@ def update_hyperparameters(hparams, update_params):
     hparams_local = deepcopy(hparams)
 
     if hparams_local["name"] in ["D-MPNN", "GCN", "GraphAgnostic", "FFN"]:
-
         if hparams_local["name"] in ["D-MPNN", "GCN"]:
             hparams_local["encoder"]["hidden_size"] = update_params.get(
                 "encoder_hidden_size", hparams["encoder"]["hidden_size"]
@@ -52,14 +51,12 @@ def update_hyperparameters(hparams, update_params):
         )  # we enforce this in the optimization
 
     elif hparams_local["name"] == "LogisticRegression":
-
         hparams_local["decoder"]["C"] = update_params.get("C", hparams["decoder"]["C"])
         hparams_local["decoder"]["penalty"] = update_params.get(
             "penalty", hparams["decoder"]["penalty"]
         )
 
     elif hparams_local["name"] == "XGB":
-
         hparams_local["decoder"]["reg_lambda"] = update_params.get(
             "reg_lambda", hparams["decoder"]["reg_lambda"]
         )

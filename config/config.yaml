@@ -1,26 +1,23 @@
 # common settings
+name: D-MPNN  # str, options: {D-MPNN, GCN, FFN, XGB, LogisticRegression, GraphAgnostic}.
 accelerator: gpu  # usually cpu or gpu.
-
-# data
-reaction: True
-data_name: slap_dataset_reactions.csv
-global_features: None  # str, options: {"RDKit", "FP", "OHE", None}. Global features to include with the graphs.
-graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
-                        # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
-featurizers: dgllife  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop}
 
 # model
 encoder:
-  type: D-MPNN  # str, options: {D-MPNN, GCN, global_features}. Note that global_features will ignore all other encoder configs.
+  reaction: True  # bool, whether input data contains a reaction or a molecule (e.g. intermediate or product)
+  graph_type: bond_nodes  # str, options: {bond_edges, bond_nodes}. If bond_edges, build graph where atoms->nodes and
+  # bonds->edges. If bond_nodes, both atoms and bonds are encoded as edges.
+  featurizers: custom  # str, featurizers to use for atom and bond features. Options: {dgllife, chemprop, custom}
   hidden_size: 572  # int
   depth: 4  # int, >= 3, number of linear layers (?)
   bias: False  # bool, whether to add bias to linear layers
   dropout_ratio: 9.19216555052358e-07  # float, probability of dropout
-  aggregation: sum  # str, options: [max, mean, sum, attention]. Operation to aggregate node-centred feature vectors for graph
+  aggregation: sum  # str, options: {max, mean, sum, attention}. Operation to aggregate node-centred feature vectors for graph
   activation: ReLU  # str, any activation from torch.nn can be used
 
 decoder:
-  type: FFN  # str, options: {FFN}.
+  global_features: None # str, options: {"RDKit", "FP", "OHE", "fromFile", None}. Global features to include with the graphs.
+  global_features_file: None # str, path to file containing global features. Only used if global_features == "fromFile".
   hidden_size: 103  # int
   depth: 1  # int, number of hidden layers
   dropout_ratio: 9.19216555052358e-07  # float, probability of dropout
@@ -30,13 +27,13 @@ decoder:
   out_sigmoid: True  # bool, whether to add a sigmoid layer at the end of the network
 
 optimizer:
-  weight_decay: 0
-  lr: 0.0003225597324579569
+  weight_decay: 0  # float, weight decay for the optimizer
+  lr: 0.0003225597324579569  # float, maximum learning rate
   lr_scheduler:
-    epochs: 100  # should be the same as max_epochs for the desired effect
-    lr_min: 3.225597324579569e-05
-    lr_warmup_step: 2
-    scheduler_name: exp_with_linear_warmup
+    epochs: 100  # int, should usually be the same as training.max_epochs for the desired learning rate schedule
+    lr_min: 3.225597324579569e-05  # float, minimum learning rate
+    lr_warmup_step: 2  # int, number of epochs to warm up the learning rate from minimum to maximum
+    scheduler_name: exp_with_linear_warmup  # str, see Pytorch Lightning documentation for other options
 
 training:
-  max_epochs: 10
+  max_epochs: 100  # int, number of epochs to train for

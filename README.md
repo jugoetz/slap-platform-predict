@@ -15,7 +15,8 @@ python inference.py --product-file PRODUCT_FILE
 ```
 where `PRODUCT_FILE` is the path to the CSV file containing the query molecules. The CSV file may be compressed in one
 of the formats pandas can read (.gz, .bz2, .zip, .xz, .zst, .tar, .tar.gz, .tar.xz or .tar.bz2).
-When passing the `--reaction` flag, reactionSMILES strings are expected as input instead of SMILES strings of the product.
+When passing the `--reaction` flag, atom-mapped reactionSMILES strings are expected as input instead of SMILES strings of the product.
+If the flag is not passed, all atom-mapped reactionSMILES strings leading to the query molecule through the SLAP platform are generated and the model is applied to each of them.
 
 Alternatively, you can use the jupyter notebook `notebooks/inference.ipynb` for more flexibility,
 but the command line interface should fit most needs.
@@ -24,7 +25,7 @@ but the command line interface should fit most needs.
 ## Usage (Training/inference on new data)
 ```bash
 # Train and evaluate a model under cross-validation:
-python run.py train --config CONFIG --data_path DATA_PATH
+python run.py train --config CONFIG --data-path DATA_PATH
 
 # For information on optional arguments use:
 python run.py train -h
@@ -33,7 +34,7 @@ python run.py train -h
 
 ```bash
 # Make predictions using a trained model:
-python run.py predict [-h] --config CONFIG --data_path DATA_PATH --model_path MODEL_PATH
+python run.py predict [-h] --config CONFIG --data-path DATA_PATH --model-path MODEL_PATH
 
 # For information on optional arguments use:
 python run.py predict -h
@@ -54,11 +55,11 @@ Other strategies (`random` and `KFold`) do not require split index files.
 
 ### Model configuration
 Edit configuration in the .yaml-file passed to `--config`.
-A sample can be found in `config/`.
+For an example, refer to `config/config.yaml`.
 Parameters given in the config file are overwritten by command-line arguments.
 
 
 ### Hyperparameter search configuration
 Hyperparameter searches require an additional configuration file containing the hyperparameter grid.
-The file is passed to `--hparam_config_path`
+The file is passed to `--hparam-config-path`
 For an example, refer to `config/hparam_bounds.yaml`.

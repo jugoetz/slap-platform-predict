@@ -1,16 +1,16 @@
-#- bounds:
-#  - 16
-#  - 2048
-#  name: encoder_hidden_size
-#  type: range
-#  value_type: int
-#
-#- bounds:
-#  - 3
-#  - 6
-#  name: encoder_depth
-#  type: range
-#  value_type: int
+- bounds:
+  - 16
+  - 2048
+  name: encoder_hidden_size
+  type: range
+  value_type: int
+
+- bounds:
+  - 3
+  - 6
+  name: encoder_depth
+  type: range
+  value_type: int
 
 - bounds:
   - 16

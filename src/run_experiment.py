@@ -52,7 +52,7 @@ def run_training(args, hparams):
         split_files = None
     else:
         raise ValueError(
-            "One of `--split_indices`, `--cv`, or `--train_size` must be given."
+            "One of `--split-indices`, `--cv`, or `--train-size` must be given."
         )
 
     job_type = None

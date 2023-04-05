@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.model.classifier import load_trained_model
-from src.util.definitions import TRAINED_MODEL_DIR, LOG_DIR, DATA_ROOT
+from src.util.definitions import TRAINED_MODEL_DIR, LOG_DIR
 from src.data.dataloader import SLAPProductDataset, collate_fn
 
 

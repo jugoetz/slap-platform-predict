@@ -1,3 +1,5 @@
+.ipynb_checkpoints/
+
 config/*
 !config/config.yaml
 !config/hparam_bounds.yaml

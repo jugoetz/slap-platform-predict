@@ -1,4 +1,11 @@
+# SLAP Platform - Reaction Outcome Prediction
+Code to accompany the paper ... [INSERT CITATION]
+
 ## Installation
+
+Install the required packages through conda/pip. An `environment.yaml` file is provided to facilitate installation.
+Note that requirements differ when installing with GPU support.
+ on Ubuntu 20.04:
 ```bash
 conda env create -f environment.yaml
 ```
@@ -46,6 +53,7 @@ Data sets are read from `DATA_PATH`. The data sets must be CSV files with one co
 Depending on the model configuration the `SMILES` column should contain SMILES strings of the intermediate or
 atom-mapped, unbalanced reactionSMILES strings of the reaction. In the context of the paper, the latter option is used.
 The `targets` column should contain value `0` or `1` for unsuccessful and successful reactions, respectively.
+To train on our data sets, download the data from [Zenodo](https://zenodo.org/). [CHANGE URL]
 
 Splits for the data sets can be provided as five separate CSV files per fold, e.g.,
 `fold0_val.csv`, `fold0_test_0D.csv` if the `predefined` split strategy is used.

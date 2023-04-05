@@ -3,9 +3,9 @@ Code to accompany the paper ... [INSERT CITATION]
 
 ## Installation
 
-Install the required packages through conda/pip. An `environment.yaml` file is provided to facilitate installation.
-Note that requirements differ when installing with GPU support.
- on Ubuntu 20.04:
+Install the required packages through conda. An `environment.yaml` file is provided to facilitate installation.
+If your system does not support CUDA, use the `environment_cpuonly.yaml` file instead.
+Installation will fail on M1/M2 Macs due to the `python=3.7` constraint. Remove it at your own risk.
 ```bash
 conda env create -f environment.yaml
 ```

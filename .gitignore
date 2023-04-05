@@ -18,6 +18,7 @@ wandb/
 
 # Pycharm
 .idea/
+.run/
 
 # nq log files
 ,*

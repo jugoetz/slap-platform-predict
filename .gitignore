@@ -25,3 +25,6 @@ wandb/
 
 # backup
 *.old
+
+# MacOS
+.DS_Store

@@ -1,7 +1,10 @@
 # SLAP Platform - Reaction Outcome Prediction
 Code to accompany the paper
 
->J. Götz, M. K. Jackl, C. Jindakun, A. N. Marziale, J. André, D. J. Gosling, C. Springer, M. Palmieri, M. Reck, A. Luneau, C. E. Brocklehurst, J. W. Bode, High-throughput synthesis and data generation for the prediction of molecular properties and synthesizability, *under review*.
+>J. Götz, M. K. Jackl, C. Jindakun, A. N. Marziale, J. André, D. J. Gosling, C. Springer, M. Palmieri, M. Reck, A. Luneau, C. E. Brocklehurst, J. W. Bode, High-throughput synthesis provides data for predicting molecular properties and reaction success, *under review*.
+
+See also:
+[https://github.com/jugoetz/slap-platform](https://github.com/jugoetz/slap-platform) for the code used for data processing
 
 ## Installation
 

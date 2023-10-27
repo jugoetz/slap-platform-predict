@@ -1,7 +1,9 @@
 # SLAP Platform - Reaction Outcome Prediction
-Code to accompany the paper
+[![DOI:10.1126/sciadv.adj2314](https://zenodo.org/badge/DOI/10.1126/sciadv.adj2314.svg)](https://doi.org/10.1126/sciadv.adj2314)
 
->J. Götz, M. K. Jackl, C. Jindakun, A. N. Marziale, J. André, D. J. Gosling, C. Springer, M. Palmieri, M. Reck, A. Luneau, C. E. Brocklehurst, J. W. Bode, High-throughput synthesis provides data for predicting molecular properties and reaction success, *under review*.
+Code to accompany the paper 
+
+>J. Götz, M. K. Jackl, C. Jindakun, A. N. Marziale, J. André, D. J. Gosling, C. Springer, M. Palmieri, M. Reck, A. Luneau, C. E. Brocklehurst, J. W. Bode, High-throughput synthesis provides data for predicting molecular properties and reaction success *Sci. Adv.* **2023**, *9*, eadj2314.
 
 See also:
 [https://github.com/jugoetz/slap-platform](https://github.com/jugoetz/slap-platform) for the code used for data processing
@@ -58,7 +60,7 @@ Data sets are read from `DATA_PATH`. The data sets must be CSV files with one co
 Depending on the model configuration the `SMILES` column should contain SMILES strings of the intermediate or
 atom-mapped, unbalanced reactionSMILES strings of the reaction. In the context of the paper, the latter option is used.
 The `targets` column should contain value `0` or `1` for unsuccessful and successful reactions, respectively.
-To train on our data sets, download the data from [Zenodo](https://doi.org/10.5281/zenodo.7950707).
+To train on our data sets, download the data from [Zenodo](https://doi.org/10.5281/zenodo.7950706).
 
 Splits for the data sets can be provided as five separate CSV files per fold, e.g.,
 `fold0_val.csv`, `fold0_test_0D.csv` if the `predefined` split strategy is used.
